@@ -1523,40 +1523,40 @@
     slotsContainer.innerHTML = '';
 
     const selectedLine = document.getElementById('line').value.toUpperCase();
-    const cleanLine = selectedLine.replace('LINE', '').trim();
-
     const breakSlot = "12.30-13.30";
 
     const now = new Date();
     const currentMinutes = (now.getHours() * 60) + now.getMinutes();
 
+    // IMPORTANT — โรง 2:
+    // ต้องคัดจาก "รอบทำงานตามชั่วโมงที่ตั้งไว้" ก่อนเสมอ
+    // 8 ชม. จบที่ 16.30-17.30
+    // 9 ชม. จบที่ 17.30-18.30
+    // 10 ชม. จบที่ 18.30-19.30
+    // ห้ามเอา OT ที่ไม่ได้อยู่ในแผนมาแสดงเพียงเพราะเวลาปัจจุบันเลยไปแล้ว
+    const plannedWorkingSlots = getWorkingSlotsForLineValue_(
+      selectedLine,
+      totalHours
+    );
+
+    let passedWorkingSlots = plannedWorkingSlots.filter(
+      slot => currentMinutes >= Number(slot.endMin || 0)
+    );
+
     let targetSlots = [];
 
-    // คง Logic เดิมทั้งหมด ยกเว้นรอบท้าย:
-    // 17:30 -> 16.30-17.30
-    // 18:30 -> 17.30-18.30
-    // 19:30 -> 18.30-19.30 (เฉพาะวัน 10 ชม.)
-    // ห้ามโชว์ slot ที่ยังผลิตไม่จบล่วงหน้า
-    if (currentMinutes >= 1020 && currentMinutes < 1080) {
-      targetSlots = TIME_SLOTS_DEF.filter(s => s.label === "16.30-17.30");
-    } else if (currentMinutes >= 1080 && currentMinutes < 1170) {
-      targetSlots = TIME_SLOTS_DEF.filter(s => s.label === "17.30-18.30");
-    } else if (currentMinutes >= 1170 && totalHours >= 10) {
-      targetSlots = TIME_SLOTS_DEF.filter(s => s.label === "18.30-19.30");
+    if (passedWorkingSlots.length >= 2) {
+      targetSlots = passedWorkingSlots.slice(-2);
+    } else if (passedWorkingSlots.length === 1) {
+      targetSlots = [passedWorkingSlots[0]];
     } else {
-      let passedSlots = TIME_SLOTS_DEF.filter(slot => currentMinutes >= slot.endMin);
-      const maxCount = Math.min(Math.ceil(totalHours), TIME_SLOTS_DEF.length);
-      passedSlots = passedSlots.slice(-maxCount);
-
-      if (passedSlots.length >= 2) {
-        targetSlots = passedSlots.slice(-2);
-      } else {
-        targetSlots = [TIME_SLOTS_DEF[0], TIME_SLOTS_DEF[1]];
-      }
+      // ก่อนรอบแรกจบ ให้โชว์รอบแรกของแผนไว้ แต่ยังไม่ลาก OT ที่ไม่เกี่ยวเข้ามา
+      targetSlots = plannedWorkingSlots.slice(0, 1);
     }
 
     const seenSlots = new Set();
     targetSlots = targetSlots.filter(slot => {
+      if (!slot || slot.label === breakSlot) return false;
       if (seenSlots.has(slot.label)) return false;
       seenSlots.add(slot.label);
       return true;
