@@ -2535,28 +2535,48 @@
       payload.loadInSlot = loadInSlot;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
-      // ส่งข้อมูลด้วย mode: 'no-cors' ป้องกันการบล็อก Preflight บน LINE Browser และ iOS
-      await fetch(SCRIPT_URL, {
+      // โรง 2 ใช้ POST แบบเดียวกับ TG เพื่ออ่านผลตอบกลับจาก Apps Script ได้จริง
+      // ไม่ใช้ no-cors เพราะมันซ่อน backend error และทำให้หน้าเหมือนค้างได้
+      const res = await fetch(SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8"
-        },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
 
+      const result = await res.json();
+
+      if (result.status !== "success") {
+        throw new Error(result.error || "ไม่สามารถบันทึกได้");
+      }
+
       alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
-      if (typeof liff !== "undefined" && liff.isInClient()) {
+
+      if (
+        typeof liff !== "undefined" &&
+        liff.isInClient &&
+        liff.isInClient()
+      ) {
         liff.closeWindow();
       } else {
         location.reload();
       }
 
     } catch (err) {
-      alert("บันทึกไม่สำเร็จ: " + err.message);
+      const message =
+        err && err.name === "AbortError"
+          ? "Apps Script ตอบกลับช้าเกิน 15 วินาที กรุณาลองใหม่"
+          : (err && err.message ? err.message : String(err));
+
+      alert("บันทึกไม่สำเร็จ: " + message);
       btnSubmit.disabled = false;
       btnSubmit.innerText = "บันทึกยอด";
+
+    } finally {
+      clearTimeout(timeoutId);
     }
   });
 </script>
