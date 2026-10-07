@@ -2493,11 +2493,21 @@
     btnSubmit.disabled = true;
     btnSubmit.innerText = "กำลังบันทึก...";
 
-    if ((userDisplayName === "Unknown" || !userDisplayName) && typeof liff !== "undefined" && liff.isLoggedIn()) {
+    // ตอนนี้ Output ยังไม่ได้ตั้ง LIFF_ID
+    // ห้ามเรียก liff.isLoggedIn() ก่อน liff.init() เพราะจะ throw แล้วทำให้ปุ่มค้างที่ "กำลังบันทึก..."
+    if (
+      (userDisplayName === "Unknown" || !userDisplayName) &&
+      LIFF_ID &&
+      typeof liff !== "undefined"
+    ) {
       try {
-        const profile = await liff.getProfile();
-        userDisplayName = profile.displayName || "Unknown";
-      } catch (e) {}
+        if (liff.isLoggedIn()) {
+          const profile = await liff.getProfile();
+          userDisplayName = profile.displayName || "Unknown";
+        }
+      } catch (e) {
+        console.warn("LIFF profile skipped:", e);
+      }
     }
 
     const hourlyDetails = [];
@@ -2556,6 +2566,7 @@
       alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
 
       if (
+        LIFF_ID &&
         typeof liff !== "undefined" &&
         liff.isInClient &&
         liff.isInClient()
