@@ -225,6 +225,14 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
           <div class="h-60 relative"><canvas id="hourlyChart"></canvas></div>
         </div>
 
+        <div class="bg-slate-50/70 border border-slate-100 rounded-2xl p-4">
+          <div class="mb-3">
+            <h3 class="text-sm font-bold text-slate-700">เป้าสะสม เทียบ ผลิตสะสม</h3>
+            <p class="text-[11px] text-slate-400">แสดงเฉพาะชั่วโมงผลิตจริง • ไม่รวมช่วงพัก 12:30–13:30</p>
+          </div>
+          <div class="h-60 relative"><canvas id="cumulativeChart"></canvas></div>
+        </div>
+
         <div class="bg-amber-50/70 border border-amber-100 rounded-2xl p-4">
           <h3 class="text-sm font-bold text-amber-800 mb-2">หมายเหตุจากหน้างาน</h3>
           <div id="dtRemarks" class="space-y-1.5 text-[11px] text-amber-900/80"></div>
@@ -353,6 +361,7 @@ var dailyChartMode = "MIX";
 var dailyChartLines = [];
 var factoryChart = null;
 var hourlyChart = null;
+var cumulativeChart = null;
 var loadingTimer = null;
 var loadingValue = 0;
 
@@ -858,6 +867,7 @@ function renderDetail(item){
   renderLotTable(item);
   renderPulse(item,m);
   renderHourlyChart(item);
+  renderCumulativeChart(item);
 }
 
 function renderRemarks(item){
@@ -955,6 +965,87 @@ function renderHourlyChart(item){
       scales:{
         x:{grid:{display:false},ticks:{font:{family:"Kanit",size:9},maxRotation:45,minRotation:45}},
         y:{beginAtZero:true,suggestedMax:100,ticks:{font:{family:"Kanit"}}}
+      }
+    }
+  });
+}
+
+function renderCumulativeChart(item){
+  // กราฟนี้ไม่แสดงช่วงพัก: ใช้เฉพาะ productive slots เท่านั้น
+  var labels = dashboardData.isRange
+    ? TIME_SLOTS.filter(function(s){ return s !== BREAK_SLOT; })
+    : plannedSlots(item.total_working_hours);
+
+  var lastReported = -1;
+  labels.forEach(function(s,i){
+    if(item.hourly_reported && item.hourly_reported[s] === true) lastReported = i;
+  });
+
+  var cumulativeTarget = [];
+  var cumulativeActual = [];
+  var tg = 0;
+  var ac = 0;
+
+  labels.forEach(function(s,i){
+    tg += RATE;
+    cumulativeTarget.push(tg);
+
+    if(dashboardData.isRange || i <= lastReported){
+      ac += num((item.hourly_data || {})[s]);
+      cumulativeActual.push(ac);
+    }else{
+      cumulativeActual.push(null);
+    }
+  });
+
+  var ctx = el("cumulativeChart").getContext("2d");
+  if(cumulativeChart) cumulativeChart.destroy();
+
+  cumulativeChart = new Chart(ctx,{
+    type:"line",
+    data:{
+      labels:labels,
+      datasets:[
+        {
+          label:"เป้าสะสม",
+          data:cumulativeTarget,
+          borderColor:"#6366F1",
+          borderWidth:2,
+          borderDash:[6,5],
+          pointRadius:3,
+          tension:.2,
+          datalabels:{display:false}
+        },
+        {
+          label:"ผลิตสะสม",
+          data:cumulativeActual,
+          borderColor:"#10B981",
+          backgroundColor:"rgba(16,185,129,.12)",
+          fill:true,
+          borderWidth:3,
+          pointRadius:3,
+          spanGaps:false,
+          tension:.2,
+          datalabels:{display:false}
+        }
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{boxWidth:10,font:{family:"Kanit",size:10}}},
+        datalabels:{display:false}
+      },
+      scales:{
+        x:{
+          grid:{display:false},
+          ticks:{font:{family:"Kanit",size:9},maxRotation:45,minRotation:45}
+        },
+        y:{
+          beginAtZero:true,
+          ticks:{font:{family:"Kanit"}}
+        }
       }
     }
   });
