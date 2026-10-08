@@ -854,15 +854,10 @@
 <body>
 
 <div class="card">
-  <div class="header-top-row">
-    <h2 class="header-title">👕 โรงงาน 2 • บันทึกยอดการผลิต</h2>
-    <div class="date-badge" id="currentDateDisplay">--/--/----</div>
-  </div>
-
-  <div style="text-align:center;margin:-2px 0 10px;"><span style="display:inline-block;background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;border-radius:999px;padding:4px 10px;font-size:.74rem;font-weight:800;">FACTORY 2 • FIXED RATE 80/ชม.</span></div>
-
-  <div class="user-banner">
-    👤 ผู้รายงาน: <span id="userDisplayNameDisplay">กำลังดึงโปรไฟล์ LINE...</span>
+  <!-- ซ่อนส่วนหัวด้านบนตามที่ขอ แต่คง element ไว้ให้ JS ใช้งาน -->
+  <div style="display:none;">
+    <span id="currentDateDisplay"></span>
+    <span id="userDisplayNameDisplay"></span>
   </div>
 
   <div class="prod-tabs">
