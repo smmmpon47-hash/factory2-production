@@ -326,23 +326,26 @@ function slotEndMinutes(slot){
   if(p.length!==2)return 0;
   return Number(p[0])*60+Number(p[1]);
 }
-function completedHours(item,dateStr){
-  var slots=plannedSlots(item.total_working_hours);
-  var today=todayLocal();
-  if(cmpYmd(dateStr,today)<0)return slots.length;
-  if(cmpYmd(dateStr,today)>0)return 0;
-  var now=new Date();
-  var mins=now.getHours()*60+now.getMinutes();
-  return slots.filter(function(s){return mins>=slotEndMinutes(s)}).length;
+function reportedWorkingSlots(item){
+  var planned=plannedSlots(item.total_working_hours);
+  return planned.filter(function(slot){
+    return item.hourly_reported && item.hourly_reported[slot] === true;
+  });
+}
+function reportedActual(item){
+  return reportedWorkingSlots(item).reduce(function(sum,slot){
+    return sum + num((item.hourly_data||{})[slot]);
+  },0);
 }
 function targetNowFor(item,dateStr){
   if(!num(item.target))return 0;
-  return Math.min(num(item.target),completedHours(item,dateStr)*RATE);
+  // ตาม logic โรง 1: เป้าตอนนี้ขยับตาม "รอบที่บันทึกจริง" ไม่ใช่นาฬิกา
+  return Math.min(num(item.target),reportedWorkingSlots(item).length*RATE);
 }
 function actualPerHour(item,dateStr){
-  var h=completedHours(item,dateStr);
+  var h=reportedWorkingSlots(item).length;
   if(!h)return 0;
-  return Math.round(num(item.actual)/h);
+  return Math.round(reportedActual(item)/h);
 }
 function lineActualByLot(item,lot){
   var total=0;
