@@ -364,6 +364,7 @@ var hourlyChart = null;
 var cumulativeChart = null;
 var loadingTimer = null;
 var loadingValue = 0;
+var lastDashboardSignature = "";
 
 function el(id){return document.getElementById(id)}
 function updateHeaderClock(){
@@ -394,6 +395,13 @@ function num(v){var n=Number(v);return Number.isFinite(n)?n:0}
 function fmt(v){return num(v).toLocaleString()}
 function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]})}
 function pct(a,b){return b>0?(a/b*100):0}
+function dashboardSignature_(data){
+  try{
+    return JSON.stringify(data);
+  }catch(_){
+    return String(Date.now());
+  }
+}
 function todayLocal(){
   var d=new Date();
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -609,7 +617,23 @@ async function loadDashboard(showLoading){
       dashboardData.isRange=false;
     }
 
-    renderAll();
+    var nextSignature=dashboardSignature_(dashboardData);
+    var isSilentRefresh=(showLoading===false);
+
+    // ถ้า auto-refresh แล้วข้อมูลไม่เปลี่ยน ห้าม redraw ทั้งหน้า
+    // ป้องกันการ์ด/กราฟกระพริบและ scroll เด้ง
+    if(!isSilentRefresh || nextSignature!==lastDashboardSignature){
+      var keepScrollY=window.scrollY;
+      renderAll();
+      lastDashboardSignature=nextSignature;
+
+      if(isSilentRefresh){
+        requestAnimationFrame(function(){
+          window.scrollTo({top:keepScrollY,left:0,behavior:"auto"});
+        });
+      }
+    }
+
     el("lastRefresh").innerText="อัปเดตล่าสุด "+new Date().toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" น.";
   }catch(err){
     console.error(err);
@@ -693,7 +717,7 @@ function renderDailyChart(lines,remember){
     type:"bar",
     data:{labels:labels,datasets:datasets},
     options:{
-      responsive:true,maintainAspectRatio:false,
+      responsive:true,maintainAspectRatio:false,animation:false,
       onClick:function(evt,items){
         if(!items.length)return;
         var item=lines[items[0].index];
@@ -1042,6 +1066,7 @@ function renderCumulativeChart(item){
     options:{
       responsive:true,
       maintainAspectRatio:false,
+      animation:false,
       plugins:{
         legend:{labels:{boxWidth:10,font:{family:"Kanit",size:10}}},
         datalabels:{display:false}
@@ -1081,7 +1106,7 @@ el("closeDetailBtn").addEventListener("click",function(){
   renderCards(dashboardData.lines||[]);
 });
 loadDashboard(true);
-setInterval(function(){loadDashboard(false)},60000);
+setInterval(function(){loadDashboard(false)},90000);
 </script>
 </body>
 </html>
