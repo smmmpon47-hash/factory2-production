@@ -939,7 +939,7 @@ function renderHourlyChart(item){
     return plan.indexOf(s)>=0||(s===BREAK_SLOT&&plan.indexOf("13.30-14.30")>=0);
   });
   var actual=labels.map(function(s){return num((item.hourly_data||{})[s])});
-  var target=labels.map(function(s){return s===BREAK_SLOT?0:RATE});
+  var target=labels.map(function(s){return s===BREAK_SLOT?null:RATE});
   var actualColors=labels.map(function(s,i){
     if(s===BREAK_SLOT)return "rgba(203,213,225,.28)";
     if(!(item.hourly_reported&&item.hourly_reported[s]===true))return "rgba(203,213,225,.18)";
@@ -954,7 +954,7 @@ function renderHourlyChart(item){
     plugins:[breakShadePlugin],
     data:{labels:labels,datasets:[
       {label:"ผลิตได้จริง",data:actual,backgroundColor:actualColors,borderRadius:7},
-      {type:"line",label:"เป้าต่อชั่วโมง (80 ชิ้น)",data:target,borderColor:"#6366F1",borderWidth:2,borderDash:[6,5],pointRadius:0,tension:0,datalabels:{display:false}}
+      {type:"line",label:"เป้าต่อชั่วโมง (80 ชิ้น)",data:target,borderColor:"#6366F1",borderWidth:2,borderDash:[6,5],pointRadius:0,tension:0,spanGaps:false,datalabels:{display:false}}
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,
