@@ -407,11 +407,26 @@
 
     try {
       const res = await fetch(
-        `${SCRIPT_URL}?action=findLot&lot=${encodeURIComponent(lot)}`
+        `${SCRIPT_URL}?action=findLot&lot=${encodeURIComponent(lot)}&_=${Date.now()}`,
+        { cache: "no-store" }
       );
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
       const data = await res.json();
 
-      if (!data.found) {
+      // เดิมหน้า TG เหมารวม backend error ว่า "ไม่พบ LOT" ทำให้วินิจฉัยผิด
+      if (data && data.status === "error") {
+        resetLotInfo(
+          `Backend error: ${data.error || 'ไม่ทราบสาเหตุ'}`,
+          "error"
+        );
+        return;
+      }
+
+      if (!data || !data.found) {
         resetLotInfo(`ไม่พบ LOT ${lot} ใน Master_Work`, "error");
         return;
       }
