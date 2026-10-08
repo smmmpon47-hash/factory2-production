@@ -5,8 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>โรงงาน 2 • ตั้งเป้าการผลิตประจำวัน</title>
 
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="preconnect" href="https://script.googleusercontent.com">
+  <link rel="preconnect" href="https://static.line-scdn.net" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <script async src="https://static.line-scdn.net/liff/edge/2/sdk.js" onload="window.__liffSdkLoaded=true; if(window.startLiffInit_) window.startLiffInit_();"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 
   <style>
     *{box-sizing:border-box;font-family:'Sarabun',sans-serif}
@@ -325,6 +334,42 @@
   let lotLookupTimer = null;
   let lotLookupController = null;
   const lotLookupCache = new Map();
+  const LOT_CACHE_PREFIX = "factory2LotLookup:";
+
+  function getCachedLot_(lot) {
+    if (lotLookupCache.has(lot)) return lotLookupCache.get(lot);
+
+    try {
+      const raw = sessionStorage.getItem(LOT_CACHE_PREFIX + lot);
+      if (!raw) return null;
+      const item = JSON.parse(raw);
+      if (!item || !item.data || Date.now() - Number(item.savedAt || 0) > 30 * 60 * 1000) {
+        sessionStorage.removeItem(LOT_CACHE_PREFIX + lot);
+        return null;
+      }
+      lotLookupCache.set(lot, item.data);
+      return item.data;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function setCachedLot_(lot, data) {
+    lotLookupCache.set(lot, data);
+    try {
+      sessionStorage.setItem(
+        LOT_CACHE_PREFIX + lot,
+        JSON.stringify({ savedAt: Date.now(), data: data })
+      );
+    } catch (_) {}
+  }
+
+  window.startLiffInit_ = function() {
+    if (window.__liffInitStarted) return;
+    if (typeof liff === "undefined" || !LIFF_ID) return;
+    window.__liffInitStarted = true;
+    void initLiff();
+  };
 
   async function initLiff() {
     const userEl = document.getElementById("userDisplayName");
@@ -419,8 +464,9 @@
     }
 
     // ถ้าเคยค้น LOT นี้แล้วใน session นี้ แสดงทันที ไม่ยิง Apps Script ซ้ำ
-    if (lotLookupCache.has(lot)) {
-      showLotLookupResult(lotLookupCache.get(lot));
+    const cachedLot = getCachedLot_(lot);
+    if (cachedLot) {
+      showLotLookupResult(cachedLot);
       return;
     }
 
@@ -462,7 +508,7 @@
         return;
       }
 
-      lotLookupCache.set(lot, data);
+      setCachedLot_(lot, data);
       showLotLookupResult(data);
 
     } catch (err) {
@@ -584,7 +630,9 @@
   });
 
   updateTarget();
-  initLiff();
+  if (window.__liffSdkLoaded || typeof liff !== "undefined") {
+    window.startLiffInit_();
+  }
 </script>
 </body>
 </html>
