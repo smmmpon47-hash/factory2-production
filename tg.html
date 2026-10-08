@@ -323,6 +323,8 @@
   let userDisplayName = "Unknown";
   let lastLotLookup = null;
   let lotLookupTimer = null;
+  let lotLookupController = null;
+  const lotLookupCache = new Map();
 
   async function initLiff() {
     const userEl = document.getElementById("userDisplayName");
@@ -383,6 +385,21 @@
     status.className = "lot-status" + (cls ? " " + cls : "");
   }
 
+  function showLotLookupResult(data) {
+    lastLotLookup = data;
+
+    document.getElementById("lotSmpl").textContent = data.smpl || "-";
+    document.getElementById("lotModel").textContent = data.model || "-";
+    document.getElementById("lotQty").textContent =
+      `${formatNumber(data.qty)} ตัว`;
+
+    document.getElementById("lotInfo").classList.add("show");
+
+    const status = document.getElementById("lotStatus");
+    status.textContent = "✓ พบข้อมูล LOT";
+    status.className = "lot-status ok";
+  }
+
   async function lookupLot() {
     const input = document.getElementById("lotNo");
     const lot = input.value.trim().toUpperCase();
@@ -401,6 +418,18 @@
       return;
     }
 
+    // ถ้าเคยค้น LOT นี้แล้วใน session นี้ แสดงทันที ไม่ยิง Apps Script ซ้ำ
+    if (lotLookupCache.has(lot)) {
+      showLotLookupResult(lotLookupCache.get(lot));
+      return;
+    }
+
+    // ยกเลิก request เก่าถ้ายังวิ่งอยู่
+    if (lotLookupController) {
+      lotLookupController.abort();
+    }
+    lotLookupController = new AbortController();
+
     const status = document.getElementById("lotStatus");
     status.textContent = "กำลังค้นหา LOT...";
     status.className = "lot-status";
@@ -408,7 +437,10 @@
     try {
       const res = await fetch(
         `${SCRIPT_URL}?action=findLot&lot=${encodeURIComponent(lot)}&_=${Date.now()}`,
-        { cache: "no-store" }
+        {
+          cache: "no-store",
+          signal: lotLookupController.signal
+        }
       );
 
       if (!res.ok) {
@@ -417,7 +449,6 @@
 
       const data = await res.json();
 
-      // เดิมหน้า TG เหมารวม backend error ว่า "ไม่พบ LOT" ทำให้วินิจฉัยผิด
       if (data && data.status === "error") {
         resetLotInfo(
           `Backend error: ${data.error || 'ไม่ทราบสาเหตุ'}`,
@@ -431,19 +462,12 @@
         return;
       }
 
-      lastLotLookup = data;
-
-      document.getElementById("lotSmpl").textContent = data.smpl || "-";
-      document.getElementById("lotModel").textContent = data.model || "-";
-      document.getElementById("lotQty").textContent =
-        `${formatNumber(data.qty)} ตัว`;
-
-      document.getElementById("lotInfo").classList.add("show");
-
-      status.textContent = "✓ พบข้อมูล LOT";
-      status.className = "lot-status ok";
+      lotLookupCache.set(lot, data);
+      showLotLookupResult(data);
 
     } catch (err) {
+      if (err && err.name === "AbortError") return;
+
       console.error(err);
       resetLotInfo("ค้นหา LOT ไม่สำเร็จ กรุณาลองใหม่", "error");
     }
@@ -451,11 +475,23 @@
 
   document.getElementById("lotNo").addEventListener("input", () => {
     clearTimeout(lotLookupTimer);
+
+    const lot = document.getElementById("lotNo").value.trim().toUpperCase();
+
+    if (!lot) {
+      resetLotInfo("กรอก LOT เพื่อดูข้อมูล SMPL / Model / Qty");
+      return;
+    }
+
     resetLotInfo("กำลังรอเลข LOT...");
+
+    // LOT โรง 2 เป็นเลข 8 หลัก พอครบแล้วค้นแทบจะทันที
+    // ถ้ายังพิมพ์ไม่ครบ ให้รอ debounce สั้น ๆ
+    const delay = /^\d{8}$/.test(lot) ? 60 : 180;
 
     lotLookupTimer = setTimeout(() => {
       lookupLot();
-    }, 450);
+    }, delay);
   });
 
   document.getElementById("lotNo").addEventListener("blur", lookupLot);
