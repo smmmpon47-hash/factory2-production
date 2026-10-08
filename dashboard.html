@@ -446,12 +446,52 @@ function finishLoading(){
 }
 
 async function fetchOneDate(dateStr){
-  var url=GAS_API_URL+"?action=getDailySummary&date="+encodeURIComponent(dateStr)+"&_="+Date.now();
-  var res=await fetch(url,{cache:"no-store",redirect:"follow"});
-  if(!res.ok)throw new Error("HTTP "+res.status);
-  var data=await res.json();
-  if(data&&data.status==="error")throw new Error(data.error||"โหลดข้อมูลไม่สำเร็จ");
-  return data||{date:dateStr,lines:[]};
+  var lastErr=null;
+
+  for(var attempt=1;attempt<=3;attempt++){
+    try{
+      var url=GAS_API_URL+"?action=getDailySummary&date="+encodeURIComponent(dateStr)+"&_="+Date.now()+"-"+attempt;
+      var controller=new AbortController();
+      var timer=setTimeout(function(){controller.abort()},15000);
+
+      var res=await fetch(url,{
+        cache:"no-store",
+        redirect:"follow",
+        signal:controller.signal
+      });
+
+      clearTimeout(timer);
+
+      if(!res.ok){
+        throw new Error("HTTP "+res.status);
+      }
+
+      var textBody=await res.text();
+      var data;
+      try{
+        data=JSON.parse(textBody);
+      }catch(_){
+        throw new Error("Apps Script ไม่ได้ส่ง JSON กลับมา");
+      }
+
+      if(data&&data.status==="error"){
+        throw new Error(data.error||"โหลดข้อมูลไม่สำเร็จ");
+      }
+
+      return data||{date:dateStr,lines:[]};
+
+    }catch(err){
+      lastErr=err;
+
+      // 404 / 5xx / network บางครั้งเป็น transient จาก Apps Script redirect
+      // รอสั้น ๆ แล้วลองใหม่ โดยไม่ล้างข้อมูลเดิมบนหน้า
+      if(attempt<3){
+        await new Promise(function(resolve){setTimeout(resolve,450*attempt)});
+      }
+    }
+  }
+
+  throw lastErr||new Error("โหลดข้อมูลไม่สำเร็จ");
 }
 
 function blankLine(code){
@@ -521,7 +561,14 @@ async function loadDashboard(showLoading){
     el("lastRefresh").innerText="อัปเดตล่าสุด "+new Date().toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" น.";
   }catch(err){
     console.error(err);
-    alert("โหลด Dashboard ไม่สำเร็จ: "+err.message);
+
+    // auto-refresh ห้ามเด้ง alert มาบัง Dashboard
+    // ถ้าข้อมูลเดิมยังอยู่ ให้ค้างข้อมูลนั้นไว้แล้วลองใหม่รอบถัดไป
+    if(showLoading===false){
+      el("lastRefresh").innerText="เชื่อมต่อชั่วคราวไม่สำเร็จ • กำลังใช้ข้อมูลล่าสุดบนหน้าจอ";
+    }else{
+      alert("โหลด Dashboard ไม่สำเร็จหลังลองใหม่ 3 ครั้ง: "+err.message);
+    }
   }finally{
     if(showLoading!==false)finishLoading();
   }
