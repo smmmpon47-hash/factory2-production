@@ -308,6 +308,40 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
 <script>
 Chart.register(ChartDataLabels);
 
+var breakShadePlugin = {
+  id: "breakShade",
+  beforeDatasetsDraw: function(chart) {
+    var labels = (chart.data && chart.data.labels) || [];
+    var breakIndex = labels.indexOf(BREAK_SLOT);
+    if (breakIndex < 0) return;
+
+    var x = chart.scales && chart.scales.x;
+    var area = chart.chartArea;
+    if (!x || !area) return;
+
+    var center = x.getPixelForValue(breakIndex);
+    var prev = breakIndex > 0 ? x.getPixelForValue(breakIndex - 1) : center;
+    var next = breakIndex < labels.length - 1 ? x.getPixelForValue(breakIndex + 1) : center;
+
+    var halfLeft = breakIndex > 0 ? (center - prev) / 2 : 28;
+    var halfRight = breakIndex < labels.length - 1 ? (next - center) / 2 : 28;
+    var left = center - halfLeft;
+    var right = center + halfRight;
+
+    var ctx = chart.ctx;
+    ctx.save();
+    ctx.fillStyle = "rgba(148, 163, 184, 0.18)";
+    ctx.fillRect(left, area.top, right - left, area.bottom - area.top);
+
+    ctx.fillStyle = "rgba(100, 116, 139, 0.88)";
+    ctx.font = "600 10px Kanit";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText("พักเที่ยง", center, area.top + 8);
+    ctx.restore();
+  }
+};
+
 var GAS_API_URL = "https://script.google.com/macros/s/AKfycbz8-wdaWStiuydILW17DSxhrprNpxHATuy4tFSrLTooTjQh65vq7NZAN7rux6XCG6tLNQ/exec";
 var LINE_CODES = ["201","202","203","204","205","206"];
 var TIME_SLOTS = ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.30","12.30-13.30","13.30-14.30","14.30-15.30","15.30-16.30","16.30-17.30","17.30-18.30","18.30-19.30"];
@@ -879,6 +913,7 @@ function renderHourlyChart(item){
 
   hourlyChart=new Chart(ctx,{
     type:"bar",
+    plugins:[breakShadePlugin],
     data:{labels:labels,datasets:[
       {label:"Actual",data:actual,backgroundColor:"#10B981",borderRadius:7},
       {type:"line",label:"Target",data:target,borderColor:"#6366F1",borderWidth:2,pointRadius:2,tension:.2,datalabels:{display:false}}
@@ -925,6 +960,7 @@ function renderCumulativeChart(item){
 
   cumulativeChart=new Chart(ctx,{
     type:"line",
+    plugins:[breakShadePlugin],
     data:{labels:labels,datasets:[
       {label:"เป้าสะสม",data:target,borderColor:"#6366F1",borderWidth:2,borderDash:[6,5],pointRadius:2,tension:.2,datalabels:{display:false}},
       {label:"ผลิตสะสม",data:actual,borderColor:"#10B981",borderWidth:3,pointRadius:3,spanGaps:false,tension:.2,datalabels:{display:false}}
