@@ -59,10 +59,43 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
   </div>
 </div>
 
-<div class="shell px-3 md:px-6 pt-5">
+<div class="shell px-3 md:px-6 pt-4 md:pt-6">
+
+  <!-- ======================= HEADER ======================= -->
+  <header class="rounded-[26px] px-4 md:px-6 py-4 text-white soft"
+          style="background:linear-gradient(120deg,#0F172A 0%,#16233F 55%,#1E3356 100%)">
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-xl">🏭</div>
+        <div>
+          <h1 class="text-lg md:text-xl font-bold leading-tight">Factory 2 Production Dashboard</h1>
+          <p class="text-[11px] text-white/60">ติดตามการผลิตแบบเรียลไทม์ • LINE 201–206</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-2 h-[48px]">
+          <span class="text-sm">📅</span>
+          <div class="leading-tight">
+            <p id="hdDate" class="text-xs font-semibold">-</p>
+            <p id="hdDay" class="text-[10px] text-white/55">-</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-2 h-[48px]">
+          <span class="text-sm">🕒</span>
+          <p id="hdClock" class="text-sm font-bold tabular-nums">--:--:--</p>
+        </div>
+        <button onclick="openLotSearch()" class="bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl px-3 text-sm transition h-[48px]" title="ค้นหา LOT">🔍</button>
+        <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-2 h-[48px]">
+          <span class="text-sm">👤</span>
+          <span id="displayName" class="text-xs font-semibold">Guest User</span>
+        </div>
+      </div>
+    </div>
+  </header>
 
   <!-- ======================= DAILY SUMMARY ======================= -->
-  <section class="grid grid-cols-1 xl:grid-cols-[1fr_260px] gap-4">
+  <section class="mt-4 grid grid-cols-1 xl:grid-cols-[1fr_260px] gap-4">
     <div class="card soft p-5">
       <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
         <div>
@@ -293,6 +326,30 @@ var loadingTimer = null;
 var loadingValue = 0;
 
 function el(id){return document.getElementById(id)}
+function updateHeaderClock(){
+  var now=new Date();
+  var dateEl=el("hdDate"), dayEl=el("hdDay"), clockEl=el("hdClock");
+  if(dateEl) dateEl.innerText=now.toLocaleDateString("th-TH",{day:"numeric",month:"long",year:"numeric"});
+  if(dayEl) dayEl.innerText=now.toLocaleDateString("th-TH",{weekday:"long"});
+  if(clockEl) clockEl.innerText=now.toLocaleTimeString("th-TH",{hour12:false});
+}
+function openLotSearch(){
+  var query=prompt("ค้นหา LOT โรงงาน 2");
+  if(query===null)return;
+  query=String(query||"").trim().toUpperCase();
+  if(!query)return;
+
+  var found=(dashboardData.lines||[]).find(function(item){
+    return [item.active_lot,item.lot_number,item.lot_number2,item.lot_number3]
+      .some(function(v){return String(v||"").trim().toUpperCase()===query});
+  });
+
+  if(!found){
+    alert("ไม่พบ LOT "+query+" ในวันที่ที่กำลังดู");
+    return;
+  }
+  openLine(String(found.line||""));
+}
 function num(v){var n=Number(v);return Number.isFinite(n)?n:0}
 function fmt(v){return num(v).toLocaleString()}
 function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]})}
@@ -835,6 +892,9 @@ function renderCumulativeChart(item){
     }
   });
 }
+
+updateHeaderClock();
+setInterval(updateHeaderClock,1000);
 
 el("datePicker").value=todayLocal();
 el("datePickerTo").value="";
