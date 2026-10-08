@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Factory 2 Production Dashboard</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0F172A;--navy2:#16233F;--ok:#10B981;--warn:#F59E0B;--bad:#EF4444;--ind:#6366F1}
+*{-webkit-tap-highlight-color:transparent}
+body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
+.shell{max-width:1500px;margin:0 auto}
+.card{background:#fff;border:1px solid #E6EBF2;border-radius:22px}
+.soft{box-shadow:0 10px 30px -22px rgba(15,23,42,.45)}
+.lineCard{min-height:300px;transition:.18s ease;cursor:pointer}
+.lineCard:hover{transform:translateY(-2px);box-shadow:0 16px 34px -24px rgba(15,23,42,.55)}
+.hide{display:none!important}
+.progressTrack{background:#EEF2F7;border-radius:999px;height:7px;overflow:hidden}
+.progressFill{height:100%;border-radius:999px;transition:width .25s ease}
+.metricLabel{font-size:10px;font-weight:600;color:#94A3B8}
+.metricValue{font-size:14px;font-weight:800;color:#0F172A}
+.badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:800}
+.loadingOverlay{position:fixed;inset:0;background:rgba(238,242,247,.88);backdrop-filter:blur(5px);z-index:60;display:flex;align-items:center;justify-content:center}
+.loadingBox{width:min(360px,calc(100vw - 40px));background:#fff;border:1px solid #E2E8F0;border-radius:22px;padding:20px;box-shadow:0 20px 50px -28px rgba(15,23,42,.6)}
+.loadingTrack{height:7px;background:#EEF2F7;border-radius:999px;overflow:hidden}
+.loadingBar{height:100%;background:linear-gradient(90deg,#6366F1,#38BDF8);border-radius:999px;transition:width .2s ease}
+.tabBtn.active{background:#fff;color:#4338CA;box-shadow:0 2px 8px rgba(15,23,42,.08)}
+@media(max-width:640px){.lineCard{min-height:0}}
+</style>
+</head>
+<body class="pb-10">
+
+<div id="loadingOverlay" class="loadingOverlay">
+  <div class="loadingBox">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <p class="text-sm font-extrabold text-slate-800">กำลังโหลดข้อมูลโรงงาน 2...</p>
+        <p class="text-[10px] text-slate-400 mt-0.5">Production Dashboard</p>
+      </div>
+      <span id="loadingPct" class="text-lg font-extrabold text-indigo-600 tabular-nums">0%</span>
+    </div>
+    <div class="loadingTrack mt-4"><div id="loadingBar" class="loadingBar" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="shell px-3 md:px-6 pt-4 md:pt-6">
+  <header class="rounded-[26px] px-4 md:px-6 py-4 text-white soft" style="background:linear-gradient(120deg,#0F172A 0%,#16233F 55%,#1E3356 100%)">
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-xl">👕</div>
+        <div>
+          <h1 class="text-lg md:text-xl font-bold leading-tight">Factory 2 Production Dashboard</h1>
+          <p class="text-[11px] text-white/60">LINE 201–206 • Fixed rate 80 ชิ้น/ชม.</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-2 h-[48px]">
+          <span>📅</span><div class="leading-tight"><p id="hdDate" class="text-xs font-semibold">-</p><p id="hdDay" class="text-[10px] text-white/55">-</p></div>
+        </div>
+        <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-2 h-[48px]">
+          <span>🕒</span><p id="hdClock" class="text-sm font-bold tabular-nums">--:--:--</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="mt-4 grid grid-cols-1 xl:grid-cols-[1fr_260px] gap-4">
+    <div class="card soft p-5">
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <div><h2 class="font-bold text-slate-800">Daily Summary</h2><p id="selectedDateText" class="text-xs text-indigo-600 font-semibold mt-0.5">-</p></div>
+        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-2xl">
+          <span class="text-xs font-semibold text-slate-500">วันที่</span>
+          <input type="date" id="datePicker" class="bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-semibold focus:outline-none focus:border-indigo-400">
+          <button id="refreshBtn" class="bg-white border border-slate-200 hover:bg-slate-50 rounded-xl px-3 py-1.5 text-xs font-bold">↻ รีเฟรช</button>
+        </div>
+      </div>
+      <div class="h-64 relative"><canvas id="factoryChart"></canvas></div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-3">
+      <div class="card soft p-4 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">✅</div>
+        <div><p class="text-[11px] text-slate-400 font-semibold">ผลิตได้แล้ว</p><p class="text-xl font-extrabold text-emerald-600"><span id="kpiActual">0</span> <span class="text-xs text-slate-400">ชิ้น</span></p></div>
+      </div>
+      <div class="card soft p-4 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">🎯</div>
+        <div><p class="text-[11px] text-slate-400 font-semibold">เป้าหมายรวม</p><p class="text-xl font-extrabold"><span id="kpiTarget">0</span> <span class="text-xs text-slate-400">ชิ้น</span></p></div>
+      </div>
+      <div class="card soft p-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-lg">📈</div>
+          <div><p class="text-[11px] text-slate-400 font-semibold">คืบหน้าทั้งโรงงาน</p><p id="kpiPct" class="text-xl font-extrabold">0%</p></div>
+        </div>
+        <div class="progressTrack mt-3"><div id="kpiBar" class="progressFill bg-sky-500" style="width:0%"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mt-5">
+    <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+      <div><h2 class="font-bold text-slate-800">รายละเอียดแยกตาม LINE</h2><p class="text-[11px] text-slate-400">คลิกการ์ดเพื่อดูรายชั่วโมง / LOT / Production Pulse</p></div>
+      <span class="text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-full px-3 py-1">Target 80 / ชั่วโมง</span>
+    </div>
+    <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+  </section>
+
+  <section id="lineDetail" class="mt-5 card soft p-5 hide">
+    <div class="flex flex-wrap justify-between items-center gap-3 pb-4 border-b border-slate-100">
+      <div class="flex items-center gap-3">
+        <button id="closeDetailBtn" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-xl">← ปิดรายละเอียด</button>
+        <div><h2 id="dtTitle" class="font-extrabold text-slate-800 text-lg">LINE 201</h2><p id="dtModel" class="text-[11px] text-slate-400">-</p></div>
+      </div>
+      <div id="lineChips" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 mt-4">
+      <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3"><p class="metricLabel">เป้าเต็มวัน</p><p id="dtTarget" class="text-lg font-extrabold mt-1">-</p></div>
+      <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3"><p class="text-[10px] font-semibold text-indigo-500">เป้าตอนนี้</p><p id="dtCurrentTarget" class="text-lg font-extrabold text-indigo-700 mt-1">-</p></div>
+      <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-3"><p class="text-[10px] font-semibold text-emerald-600">ผลิตได้แล้ว</p><p id="dtActual" class="text-lg font-extrabold text-emerald-700 mt-1">-</p></div>
+      <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3"><p class="metricLabel">ผลิตจริง/ชม.</p><p id="dtRate" class="text-lg font-extrabold mt-1">-</p></div>
+      <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3"><p class="metricLabel">เป้า/ชม.</p><p class="text-lg font-extrabold mt-1">80</p></div>
+      <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3"><p class="metricLabel">กำลังคน</p><p id="dtManpower" class="text-lg font-extrabold mt-1">-</p></div>
+      <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3"><p class="metricLabel">เข้าโหลดวันนี้</p><p id="dtLoadIn" class="text-lg font-extrabold mt-1">-</p></div>
+      <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3"><p class="metricLabel">เวลาทำงาน</p><p id="dtHours" class="text-lg font-extrabold mt-1">-</p></div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[1.55fr_1fr] gap-4 mt-4">
+      <div class="space-y-4">
+        <div class="bg-slate-50/70 border border-slate-100 rounded-2xl p-4">
+          <div class="flex justify-between items-center gap-2 mb-3"><div><h3 class="text-sm font-bold text-slate-700">ผลการผลิตรายชั่วโมง</h3><p class="text-[11px] text-slate-400">เส้นเป้า 80 ชิ้น/ชม.</p></div><span id="dtStatusBadge" class="badge bg-slate-100 text-slate-500">-</span></div>
+          <div class="h-64 relative"><canvas id="hourlyChart"></canvas></div>
+        </div>
+        <div class="bg-slate-50/70 border border-slate-100 rounded-2xl p-4">
+          <div class="mb-3"><h3 class="text-sm font-bold text-slate-700">เป้าสะสม เทียบ ผลิตสะสม</h3><p class="text-[11px] text-slate-400">เส้นผลิตจริงหยุดที่รอบที่มีการบันทึกล่าสุด</p></div>
+          <div class="h-64 relative"><canvas id="cumulativeChart"></canvas></div>
+        </div>
+        <div class="bg-amber-50/70 border border-amber-100 rounded-2xl p-4">
+          <h3 class="text-sm font-bold text-amber-800 mb-2">หมายเหตุจากหน้างาน</h3>
+          <div id="dtRemarks" class="space-y-1.5 text-[11px] text-amber-900/80"></div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="bg-slate-50/70 border border-slate-100 rounded-2xl p-4">
+          <div class="flex justify-between items-start gap-2 mb-3">
+            <div><h3 class="text-sm font-bold text-slate-700">Production Pulse</h3><p id="pulseSub" class="text-[11px] text-slate-400">LOT ปัจจุบัน</p></div>
+            <span id="pulseBadge" class="badge bg-indigo-50 text-indigo-600">LINE</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="bg-white border border-slate-100 rounded-xl p-3"><p class="metricLabel">LOT ปัจจุบัน</p><p id="pulseLot" class="text-sm font-extrabold mt-1 truncate">-</p></div>
+            <div class="bg-white border border-slate-100 rounded-xl p-3"><p class="metricLabel">SMPL / Model</p><p id="pulseModel" class="text-sm font-extrabold mt-1 truncate">-</p></div>
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3"><p class="text-[10px] font-semibold text-indigo-500">ความคืบหน้าออเดอร์</p><p id="pulseOrder" class="text-base font-extrabold text-indigo-700 mt-1">-</p><p id="pulseOrderMeta" class="text-[9px] text-indigo-400 mt-0.5">-</p></div>
+            <div class="bg-white border border-slate-100 rounded-xl p-3"><p class="metricLabel">เหลือในออเดอร์</p><p id="pulseRemain" class="text-base font-extrabold mt-1">-</p><p id="pulseRemainMeta" class="text-[9px] text-slate-400 mt-0.5">-</p></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-50/70 border border-slate-100 rounded-2xl p-4">
+          <h3 class="text-sm font-bold text-slate-700 mb-2">รายการ LOT ของวันนี้</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-[11px]">
+              <thead><tr class="text-slate-400 border-b border-slate-200"><th class="text-left font-semibold py-1.5">LOT</th><th class="text-left font-semibold">รุ่น/SMPL</th><th class="text-right font-semibold">เป้า</th><th class="text-right font-semibold">ผลิต</th></tr></thead>
+              <tbody id="dtLotTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-slate-50/70 border border-slate-100 rounded-2xl p-4">
+          <h3 class="text-sm font-bold text-slate-700 mb-2">สถานะวันนี้</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-white rounded-xl border border-slate-100 p-3"><p class="metricLabel">ส่วนต่างจากเป้าตอนนี้</p><p id="dtCurrentGap" class="text-lg font-extrabold mt-1">-</p></div>
+            <div class="bg-white rounded-xl border border-slate-100 p-3"><p class="metricLabel">Progress ทั้งวัน</p><p id="dtPct" class="text-lg font-extrabold mt-1">-</p></div>
+          </div>
+          <div class="progressTrack mt-3"><div id="dtProgressBar" class="progressFill bg-emerald-500" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p id="lastRefresh" class="text-center text-[10px] text-slate-400 mt-5">-</p>
+</div>
+
+<script>
+var GAS_API_URL = "https://script.google.com/macros/s/AKfycbz8-wdaWStiuydILW17DSxhrprNpxHATuy4tFSrLTooTjQh65vq7NZAN7rux6XCG6tLNQ/exec";
+var LINE_CODES = ["201","202","203","204","205","206"];
+var TIME_SLOTS = ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.30","12.30-13.30","13.30-14.30","14.30-15.30","15.30-16.30","16.30-17.30","17.30-18.30","18.30-19.30"];
+var BREAK_SLOT = "12.30-13.30";
+var RATE = 80;
+var dashboardData = {date:"",lines:[]};
+var selectedLine = "";
+var factoryChart = null;
+var hourlyChart = null;
+var cumulativeChart = null;
+var loadingTimer = null;
+var loadingValue = 0;
+
+function el(id){return document.getElementById(id)}
+function num(v){var n=Number(v);return Number.isFinite(n)?n:0}
+function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]})}
+function pct(a,b){return b>0?(a/b*100):0}
+function todayLocal(){var d=new Date();var y=d.getFullYear();var m=String(d.getMonth()+1).padStart(2,"0");var day=String(d.getDate()).padStart(2,"0");return y+"-"+m+"-"+day}
+function formatDateThai(s){if(!s)return "-";var p=s.split("-");if(p.length!==3)return s;var d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));return d.toLocaleDateString("th-TH",{day:"numeric",month:"long",year:"numeric"})}
+function plannedSlots(hours){return TIME_SLOTS.filter(function(s){return s!==BREAK_SLOT}).slice(0,Math.max(0,num(hours)||8))}
+function reportedWorkingSlots(item){var plan=plannedSlots(item.total_working_hours);return plan.filter(function(s){return item.hourly_reported&&item.hourly_reported[s]===true})}
+function currentTarget(item){return reportedWorkingSlots(item).length*RATE}
+function actualPerReportedHour(item){var c=reportedWorkingSlots(item).length;return c?Math.round(num(item.actual)/c):0}
+function lineActualByLot(item,lot){var total=0;if(!lot)return total;TIME_SLOTS.forEach(function(s){if(String((item.hourly_lot||{})[s]||"").toUpperCase()===String(lot).toUpperCase())total+=num((item.hourly_data||{})[s])});return total}
+function statusInfo(item){
+  if(!num(item.target))return {text:"ยังไม่ตั้งเป้า",cls:"bg-slate-100 text-slate-500",bar:"bg-slate-300"};
+  var ct=currentTarget(item);
+  if(num(item.actual)>=num(item.target))return {text:"ถึงเป้าแล้ว",cls:"bg-emerald-50 text-emerald-700",bar:"bg-emerald-500"};
+  if(ct===0)return {text:"รอลงยอด",cls:"bg-sky-50 text-sky-700",bar:"bg-sky-500"};
+  if(num(item.actual)>=ct)return {text:"ตามแผน",cls:"bg-emerald-50 text-emerald-700",bar:"bg-emerald-500"};
+  return {text:"ต่ำกว่าเป้า",cls:"bg-rose-50 text-rose-700",bar:"bg-rose-500"};
+}
+
+function startLoading(){
+  loadingValue=4;el("loadingPct").innerText=loadingValue+"%";el("loadingBar").style.width=loadingValue+"%";el("loadingOverlay").classList.remove("hide");
+  clearInterval(loadingTimer);
+  loadingTimer=setInterval(function(){
+    var step=loadingValue<35?7:loadingValue<70?4:loadingValue<88?2:1;
+    loadingValue=Math.min(94,loadingValue+step);
+    el("loadingPct").innerText=loadingValue+"%";el("loadingBar").style.width=loadingValue+"%";
+  },180);
+}
+function finishLoading(){
+  clearInterval(loadingTimer);loadingValue=100;el("loadingPct").innerText="100%";el("loadingBar").style.width="100%";
+  setTimeout(function(){el("loadingOverlay").classList.add("hide")},160);
+}
+
+function updateClock(){
+  var now=new Date();
+  el("hdClock").innerText=now.toLocaleTimeString("th-TH",{hour12:false});
+  el("hdDate").innerText=now.toLocaleDateString("th-TH",{day:"2-digit",month:"short",year:"numeric"});
+  el("hdDay").innerText=now.toLocaleDateString("th-TH",{weekday:"long"});
+}
+setInterval(updateClock,1000);updateClock();
+
+async function loadDashboard(showLoading){
+  if(showLoading!==false)startLoading();
+  var d=el("datePicker").value||todayLocal();
+  try{
+    var res=await fetch(GAS_API_URL+"?action=getDailySummary&date="+encodeURIComponent(d)+"&_="+Date.now(),{cache:"no-store",redirect:"follow"});
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    var data=await res.json();
+    if(data.status==="error")throw new Error(data.error||"โหลดข้อมูลไม่สำเร็จ");
+    dashboardData=data||{date:d,lines:[]};
+    renderAll();
+    el("lastRefresh").innerText="อัปเดตล่าสุด "+new Date().toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" น.";
+  }catch(err){
+    console.error(err);
+    alert("โหลด Dashboard ไม่สำเร็จ: "+err.message);
+  }finally{
+    if(showLoading!==false)finishLoading();
+  }
+}
+
+function renderAll(){
+  var lines=Array.isArray(dashboardData.lines)?dashboardData.lines:[];
+  var target=lines.reduce(function(s,x){return s+num(x.target)},0);
+  var actual=lines.reduce(function(s,x){return s+num(x.actual)},0);
+  var progress=target?pct(actual,target):0;
+  el("selectedDateText").innerText=formatDateThai(dashboardData.date||el("datePicker").value);
+  el("kpiTarget").innerText=target.toLocaleString();
+  el("kpiActual").innerText=actual.toLocaleString();
+  el("kpiPct").innerText=progress.toFixed(1)+"%";
+  el("kpiBar").style.width=Math.min(100,progress)+"%";
+  renderFactoryChart(lines);
+  renderCards(lines);
+  renderChips();
+  if(selectedLine){
+    var item=lines.find(function(x){return String(x.line)===String(selectedLine)});
+    if(item)renderDetail(item);
+  }
+}
+
+function renderFactoryChart(lines){
+  var ctx=el("factoryChart").getContext("2d");
+  if(factoryChart)factoryChart.destroy();
+  factoryChart=new Chart(ctx,{
+    type:"bar",
+    data:{labels:lines.map(function(x){return "LINE "+x.line}),datasets:[
+      {label:"Target",data:lines.map(function(x){return num(x.target)}),backgroundColor:"rgba(99,102,241,.78)",borderRadius:8},
+      {label:"Actual",data:lines.map(function(x){return num(x.actual)}),backgroundColor:"rgba(16,185,129,.78)",borderRadius:8}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{family:"Kanit",size:10}}}},scales:{x:{grid:{display:false},ticks:{font:{family:"Kanit",weight:"600"}}},y:{beginAtZero:true,ticks:{font:{family:"Kanit"}}}}}
+  });
+}
+
+function renderCards(lines){
+  var c=el("cardsContainer");c.innerHTML="";
+  lines.forEach(function(item){
+    var st=statusInfo(item);
+    var progress=num(item.target)?pct(item.actual,item.target):0;
+    var ct=currentTarget(item);
+    var avg=actualPerReportedHour(item);
+    var title=item.active_smpl||item.active_model||item.model1||"ยังไม่มีงาน";
+    var lot=item.active_lot||item.lot_number||"-";
+    var html='';
+    html+='<article class="lineCard card soft p-4" data-line="'+esc(item.line)+'">';
+    html+='<div class="flex items-start justify-between gap-3"><div><p class="text-lg font-extrabold text-slate-800">LINE '+esc(item.line)+'</p><p class="text-[11px] font-semibold text-indigo-500 mt-0.5 truncate">'+esc(title)+'</p><p class="text-[10px] text-slate-400">LOT '+esc(lot)+'</p></div><span class="badge '+st.cls+'">'+st.text+'</span></div>';
+    html+='<div class="grid grid-cols-2 gap-x-4 gap-y-3 mt-4">';
+    html+='<div><p class="metricLabel">เป้าเต็มวัน</p><p class="metricValue">'+num(item.target).toLocaleString()+'</p></div>';
+    html+='<div><p class="metricLabel">เป้าตอนนี้</p><p class="metricValue text-indigo-600">'+ct.toLocaleString()+'</p></div>';
+    html+='<div><p class="metricLabel">ผลิตจริง/ชม.</p><p class="metricValue">'+avg.toLocaleString()+'</p></div>';
+    html+='<div><p class="metricLabel">เป้า/ชม.</p><p class="metricValue">80</p></div>';
+    html+='<div><p class="metricLabel">เข้าโหลดวันนี้</p><p class="metricValue">'+(item.load_in==null?"-":num(item.load_in).toLocaleString())+'</p></div>';
+    html+='<div><p class="metricLabel">กำลังคน</p><p class="metricValue">'+(item.manpower==null?"-":esc(item.manpower))+'</p></div>';
+    html+='</div>';
+    html+='<div class="flex items-center justify-between mt-4"><p class="text-[10px] text-slate-400">Actual '+num(item.actual).toLocaleString()+' / '+num(item.target).toLocaleString()+'</p><p class="text-xs font-extrabold">'+progress.toFixed(1)+'%</p></div>';
+    html+='<div class="progressTrack mt-1.5"><div class="progressFill '+st.bar+'" style="width:'+Math.min(100,progress)+'%"></div></div>';
+    if(Array.isArray(item.remarks)&&item.remarks.length){html+='<div class="mt-3 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-[10px] text-amber-800 truncate">⚠ '+esc(item.remarks[item.remarks.length-1].slot)+' '+esc(item.remarks[item.remarks.length-1].note)+'</div>'}
+    html+='</article>';
+    c.insertAdjacentHTML("beforeend",html);
+  });
+  Array.prototype.forEach.call(c.querySelectorAll(".lineCard"),function(card){card.addEventListener("click",function(){openLine(card.getAttribute("data-line"))})});
+}
+
+function renderChips(){
+  var c=el("lineChips");c.innerHTML="";
+  LINE_CODES.forEach(function(code){
+    var b=document.createElement("button");b.className="text-[10px] font-extrabold px-3 py-1.5 rounded-full border "+(String(selectedLine)===code?"bg-indigo-600 text-white border-indigo-600":"bg-white text-slate-500 border-slate-200");
+    b.innerText="LINE "+code;b.onclick=function(){openLine(code)};c.appendChild(b);
+  });
+}
+
+function openLine(code){
+  selectedLine=String(code);
+  var item=(dashboardData.lines||[]).find(function(x){return String(x.line)===selectedLine});
+  if(!item)return;
+  el("lineDetail").classList.remove("hide");
+  renderChips();renderDetail(item);
+  setTimeout(function(){el("lineDetail").scrollIntoView({behavior:"smooth",block:"start"})},50);
+}
+
+function renderDetail(item){
+  var st=statusInfo(item);
+  var currentTG=currentTarget(item);
+  var rep=reportedWorkingSlots(item).length;
+  var avg=rep?Math.round(num(item.actual)/rep):0;
+  var currentGap=num(item.actual)-currentTG;
+  var progress=num(item.target)?pct(item.actual,item.target):0;
+  var label=[item.active_smpl,item.active_model].filter(Boolean).join(" • ")||item.model1||"-";
+  el("dtTitle").innerText="LINE "+item.line;
+  el("dtModel").innerText=label+(item.active_lot?" • LOT "+item.active_lot:"");
+  el("dtTarget").innerText=num(item.target).toLocaleString();
+  el("dtCurrentTarget").innerText=currentTG.toLocaleString();
+  el("dtActual").innerText=num(item.actual).toLocaleString();
+  el("dtRate").innerText=avg.toLocaleString();
+  el("dtManpower").innerText=item.manpower==null?"-":item.manpower;
+  el("dtLoadIn").innerText=item.load_in==null?"-":num(item.load_in).toLocaleString();
+  el("dtHours").innerText=num(item.total_working_hours)+" ชม.";
+  el("dtStatusBadge").className="badge "+st.cls;el("dtStatusBadge").innerText=st.text;
+  el("dtCurrentGap").innerText=(currentGap>=0?"+":"")+currentGap.toLocaleString();
+  el("dtCurrentGap").className="text-lg font-extrabold mt-1 "+(currentGap>=0?"text-emerald-600":"text-rose-600");
+  el("dtPct").innerText=progress.toFixed(1)+"%";
+  el("dtProgressBar").style.width=Math.min(100,progress)+"%";
+  renderRemarks(item);renderLotTable(item);renderPulse(item);renderHourlyChart(item);renderCumulativeChart(item);
+}
+
+function renderRemarks(item){
+  var r=Array.isArray(item.remarks)?item.remarks:[];
+  if(!r.length){el("dtRemarks").innerHTML='<p class="text-amber-700/60">ยังไม่มีหมายเหตุของ LINE นี้วันนี้</p>';return}
+  el("dtRemarks").innerHTML=r.map(function(x){return '<div class="bg-white/70 border border-amber-100 rounded-xl px-3 py-2"><span class="font-extrabold">'+esc(x.slot)+'</span> <span class="text-amber-600">LOT '+esc(x.lot||"-")+'</span><br>'+esc(x.note)+'</div>'}).join("");
+}
+
+function renderLotTable(item){
+  var lots=[
+    {lot:item.lot_number,label:item.model1,target:item.target1},
+    {lot:item.lot_number2,label:item.model2,target:item.target2},
+    {lot:item.lot_number3,label:item.model3,target:item.target3}
+  ].filter(function(x){return !!x.lot});
+  if(!lots.length){el("dtLotTable").innerHTML='<tr><td colspan="4" class="py-3 text-center text-slate-400">ยังไม่มี LOT วันนี้</td></tr>';return}
+  el("dtLotTable").innerHTML=lots.map(function(x){var ac=lineActualByLot(item,x.lot);return '<tr class="border-b border-slate-100 last:border-0"><td class="py-2 font-bold">'+esc(x.lot)+'</td><td class="text-slate-500">'+esc(x.label||"-")+'</td><td class="text-right font-semibold">'+num(x.target).toLocaleString()+'</td><td class="text-right font-extrabold text-emerald-600">'+ac.toLocaleString()+'</td></tr>'}).join("");
+}
+
+function renderPulse(item){
+  var lot=item.active_lot||item.lot_number||"";
+  var smpl=item.active_smpl||"";
+  var model=item.active_model||item.model1||"";
+  var orderQty=num(item.active_po_target);
+  var orderActual=num(item.active_cumulative_actual);
+  var orderPct=orderQty?pct(orderActual,orderQty):0;
+  var remain=Math.max(0,orderQty-orderActual);
+  el("pulseBadge").innerText="LINE "+item.line;
+  el("pulseLot").innerText=lot||"-";
+  el("pulseModel").innerText=[smpl,model].filter(Boolean).join(" / ")||"-";
+  el("pulseOrder").innerText=orderQty?orderPct.toFixed(1)+"%":"-";
+  el("pulseOrderMeta").innerText=orderQty?orderActual.toLocaleString()+" / "+orderQty.toLocaleString()+" ชิ้น":"ไม่มี Qty ใน Master";
+  el("pulseRemain").innerText=orderQty?remain.toLocaleString():"-";
+  el("pulseRemainMeta").innerText=orderQty?"≈ "+(remain/RATE).toFixed(1)+" ชั่วโมงที่ Rate 80":"-";
+  el("pulseSub").innerText=lot?"LOT "+lot:"ยังไม่มี LOT ปัจจุบัน";
+}
+
+function renderHourlyChart(item){
+  var plan=plannedSlots(item.total_working_hours);
+  var labels=TIME_SLOTS.filter(function(s){return plan.indexOf(s)>=0||s===BREAK_SLOT&&plan.indexOf("13.30-14.30")>=0});
+  var actual=labels.map(function(s){return num((item.hourly_data||{})[s])});
+  var target=labels.map(function(s){return s===BREAK_SLOT?0:RATE});
+  var ctx=el("hourlyChart").getContext("2d");
+  if(hourlyChart)hourlyChart.destroy();
+  hourlyChart=new Chart(ctx,{type:"bar",data:{labels:labels,datasets:[
+    {label:"Actual",data:actual,backgroundColor:"rgba(16,185,129,.78)",borderRadius:7},
+    {type:"line",label:"Target",data:target,borderColor:"#6366F1",borderWidth:2,pointRadius:2,tension:.2}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{family:"Kanit",size:10}}}},scales:{x:{grid:{display:false},ticks:{font:{family:"Kanit",size:9},maxRotation:45,minRotation:45}},y:{beginAtZero:true,suggestedMax:100,ticks:{font:{family:"Kanit"}}}}}});
+}
+
+function renderCumulativeChart(item){
+  var plan=plannedSlots(item.total_working_hours);
+  var labels=TIME_SLOTS.filter(function(s){return plan.indexOf(s)>=0||s===BREAK_SLOT&&plan.indexOf("13.30-14.30")>=0});
+  var lastReported=-1;
+  labels.forEach(function(s,i){if(s!==BREAK_SLOT&&item.hourly_reported&&item.hourly_reported[s]===true)lastReported=i});
+  var ct=0,ca=0;
+  var target=[],actual=[];
+  labels.forEach(function(s,i){
+    if(s!==BREAK_SLOT)ct+=RATE;
+    target.push(ct);
+    if(i<=lastReported){
+      ca+=num((item.hourly_data||{})[s]);
+      actual.push(ca);
+    }else{
+      actual.push(null);
+    }
+  });
+  var ctx=el("cumulativeChart").getContext("2d");
+  if(cumulativeChart)cumulativeChart.destroy();
+  cumulativeChart=new Chart(ctx,{type:"line",data:{labels:labels,datasets:[
+    {label:"เป้าสะสม",data:target,borderColor:"#6366F1",borderWidth:2,borderDash:[6,5],pointRadius:2,tension:.2},
+    {label:"ผลิตสะสม",data:actual,borderColor:"#10B981",borderWidth:3,pointRadius:3,spanGaps:false,tension:.2}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{family:"Kanit",size:10}}}},scales:{x:{grid:{display:false},ticks:{font:{family:"Kanit",size:9},maxRotation:45,minRotation:45}},y:{beginAtZero:true,ticks:{font:{family:"Kanit"}}}}}});
+}
+
+el("datePicker").value=todayLocal();
+el("datePicker").addEventListener("change",function(){selectedLine="";el("lineDetail").classList.add("hide");loadDashboard(true)});
+el("refreshBtn").addEventListener("click",function(){loadDashboard(true)});
+el("closeDetailBtn").addEventListener("click",function(){el("lineDetail").classList.add("hide");selectedLine=""});
+loadDashboard(true);
+setInterval(function(){loadDashboard(false)},60000);
+</script>
+</body>
+</html>
