@@ -439,6 +439,31 @@ function dashboardSignature_(data){
     return "";
   }
 }
+function dashboardCacheKey_(dateStr){
+  return "factory2DashboardCache:"+String(dateStr||"");
+}
+function saveDashboardCache_(dateStr,data){
+  try{
+    if(!dateStr || !data || data.isRange) return;
+    localStorage.setItem(
+      dashboardCacheKey_(dateStr),
+      JSON.stringify({savedAt:Date.now(),data:data})
+    );
+  }catch(_){}
+}
+function restoreDashboardCache_(dateStr){
+  try{
+    var raw=localStorage.getItem(dashboardCacheKey_(dateStr));
+    if(!raw) return null;
+    var item=JSON.parse(raw);
+    if(!item || !item.data) return null;
+    // ใช้ cache แค่วันเดียวกัน และไม่เก่ากว่า 12 ชั่วโมง
+    if(Date.now()-Number(item.savedAt||0) > 12*60*60*1000) return null;
+    return item.data;
+  }catch(_){
+    return null;
+  }
+}
 function todayLocal(){
   var d=new Date();
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -649,17 +674,19 @@ async function loadDashboard(showLoading){
       var dates=daysInclusive(from,to);
       if(!dates.length||dates.length>=31&&dates[dates.length-1]!==to)throw new Error("เลือกช่วงวันที่ได้สูงสุด 31 วัน");
       var fetchOpts=showLoading===false
-        ? {attempts:2,timeoutMs:20000}
-        : {attempts:3,timeoutMs:45000};
+        ? {attempts:1,timeoutMs:15000}
+        : {attempts:1,timeoutMs:20000};
       var payloads=await Promise.all(dates.map(function(d){return fetchOneDate(d,fetchOpts)}));
       dashboardData=mergeRange(payloads,from,to);
     }else{
       var fetchOpts=showLoading===false
-        ? {attempts:2,timeoutMs:20000}
-        : {attempts:3,timeoutMs:45000};
+        ? {attempts:1,timeoutMs:15000}
+        : {attempts:1,timeoutMs:20000};
       dashboardData=await fetchOneDate(from,fetchOpts);
       dashboardData.isRange=false;
     }
+
+    if(!dashboardData.isRange) saveDashboardCache_(dashboardData.date||from,dashboardData);
 
     var nextSignature=dashboardSignature_(dashboardData);
 
@@ -1129,6 +1156,28 @@ function renderCumulativeChart(item){
   });
 }
 
+async function bootDashboard_(){
+  var d=el("datePicker").value||todayLocal();
+  currentRange={from:d,to:""};
+
+  var cached=restoreDashboardCache_(d);
+  if(cached){
+    dashboardData=cached;
+    dashboardData.isRange=false;
+    renderAll();
+    lastDashboardSignature=dashboardSignature_(dashboardData);
+    el("lastRefresh").innerText="แสดงข้อมูลล่าสุดที่จำไว้ • กำลังเช็กข้อมูลใหม่...";
+    finishLoading();
+
+    // เช็กข้อมูลใหม่แบบเงียบ ไม่บล็อกหน้า
+    setTimeout(function(){loadDashboard(false)},50);
+    return;
+  }
+
+  // ถ้ายังไม่มี cache รอ backend สูงสุด 20 วินาที แล้วปล่อยหน้า
+  await loadDashboard(true);
+}
+
 updateHeaderClock();
 setInterval(updateHeaderClock,1000);
 
@@ -1149,7 +1198,7 @@ el("closeDetailBtn").addEventListener("click",function(){
   el("lineDetail").classList.add("hide");
   renderCards(dashboardData.lines||[]);
 });
-loadDashboard(true);
+bootDashboard_();
 setInterval(function(){
   if(document.visibilityState!=="visible") return;
   loadDashboard(false);
