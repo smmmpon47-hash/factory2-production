@@ -365,6 +365,7 @@ var cumulativeChart = null;
 var loadingTimer = null;
 var loadingValue = 0;
 var lastDashboardSignature = "";
+var dashboardFetchInProgress = false;
 
 function el(id){return document.getElementById(id)}
 function updateHeaderClock(){
@@ -397,9 +398,45 @@ function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){retur
 function pct(a,b){return b>0?(a/b*100):0}
 function dashboardSignature_(data){
   try{
-    return JSON.stringify(data);
+    var lines=Array.isArray(data&&data.lines)?data.lines:[];
+    var stable={
+      date:data&&data.date||"",
+      dateTo:data&&data.dateTo||"",
+      isRange:!!(data&&data.isRange),
+      lines:lines.map(function(x){
+        return {
+          line:x.line||"",
+          target:num(x.target),
+          actual:num(x.actual),
+          total_working_hours:num(x.total_working_hours),
+          manpower:x.manpower==null?null:x.manpower,
+
+          active_lot:x.active_lot||"",
+          active_model:x.active_model||"",
+          active_smpl:x.active_smpl||"",
+          active_po_target:num(x.active_po_target),
+          active_cumulative_actual:num(x.active_cumulative_actual),
+
+          lot_number:x.lot_number||"",
+          model1:x.model1||"",
+          target1:num(x.target1),
+          lot_number2:x.lot_number2||"",
+          model2:x.model2||"",
+          target2:num(x.target2),
+          lot_number3:x.lot_number3||"",
+          model3:x.model3||"",
+          target3:num(x.target3),
+
+          hourly_data:x.hourly_data||{},
+          hourly_reported:x.hourly_reported||{},
+          hourly_lot:x.hourly_lot||{},
+          remarks:Array.isArray(x.remarks)?x.remarks:[]
+        };
+      })
+    };
+    return JSON.stringify(stable);
   }catch(_){
-    return String(Date.now());
+    return "";
   }
 }
 function todayLocal(){
@@ -594,6 +631,13 @@ function mergeRange(payloads,from,to){
 }
 
 async function loadDashboard(showLoading){
+  var isSilentRefresh=(showLoading===false);
+
+  // กัน auto-refresh ซ้อนกัน ถ้า Apps Script รอบก่อนยังตอบไม่เสร็จ
+  // ของเดิมอาจมีหลาย request วิ่งพร้อมกันแล้วตอบกลับคนละเวลา ทำให้กราฟเด้งไปมา
+  if(isSilentRefresh && dashboardFetchInProgress) return;
+
+  dashboardFetchInProgress=true;
   if(showLoading!==false)startLoading();
   var from=el("datePicker").value||todayLocal();
   var to=el("datePickerTo").value||"";
@@ -618,7 +662,6 @@ async function loadDashboard(showLoading){
     }
 
     var nextSignature=dashboardSignature_(dashboardData);
-    var isSilentRefresh=(showLoading===false);
 
     // ถ้า auto-refresh แล้วข้อมูลไม่เปลี่ยน ห้าม redraw ทั้งหน้า
     // ป้องกันการ์ด/กราฟกระพริบและ scroll เด้ง
@@ -643,6 +686,7 @@ async function loadDashboard(showLoading){
     el("lastRefresh").innerText=
       "เชื่อมต่อชั่วคราวไม่สำเร็จ • "+(err&&err.message?err.message:"กำลังใช้ข้อมูลล่าสุดบนหน้าจอ");
   }finally{
+    dashboardFetchInProgress=false;
     if(showLoading!==false)finishLoading();
   }
 }
@@ -990,7 +1034,7 @@ function renderHourlyChart(item){
       {type:"line",label:"เป้าต่อชั่วโมง (80 ชิ้น)",data:target,borderColor:"#6366F1",borderWidth:2,borderDash:[6,5],pointRadius:0,tension:0,spanGaps:false,datalabels:{display:false}}
     ]},
     options:{
-      responsive:true,maintainAspectRatio:false,
+      responsive:true,maintainAspectRatio:false,animation:false,
       plugins:{
         legend:{labels:{boxWidth:10,font:{family:"Kanit",size:10}}},
         datalabels:{color:"#fff",font:{family:"Kanit",weight:"bold",size:9},formatter:function(v){return v>0?v:""}}
@@ -1106,7 +1150,10 @@ el("closeDetailBtn").addEventListener("click",function(){
   renderCards(dashboardData.lines||[]);
 });
 loadDashboard(true);
-setInterval(function(){loadDashboard(false)},90000);
+setInterval(function(){
+  if(document.visibilityState!=="visible") return;
+  loadDashboard(false);
+},90000);
 </script>
 </body>
 </html>
