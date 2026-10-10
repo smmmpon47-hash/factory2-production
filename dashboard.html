@@ -218,7 +218,7 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
           <div class="flex justify-between items-center gap-2 mb-3">
             <div>
               <h3 class="text-sm font-bold text-slate-700">ผลการผลิตรายชั่วโมง</h3>
-              <p class="text-[11px] text-slate-400">เป้าคงที่ 80 ชิ้น/ชม.</p>
+              <p id="dtHourlyRateNote" class="text-[11px] text-slate-400">เป้าตามประเภทงานของ LOT</p>
             </div>
             <span id="dtStatusBadge" class="badge bg-slate-100 text-slate-500">-</span>
           </div>
@@ -350,9 +350,30 @@ var breakShadePlugin = {
 
 var GAS_API_URL = "https://script.google.com/macros/s/AKfycbz8-wdaWStiuydILW17DSxhrprNpxHATuy4tFSrLTooTjQh65vq7NZAN7rux6XCG6tLNQ/exec";
 var LINE_CODES = ["201","202","203","204","205","206"];
-var TIME_SLOTS = ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.30","12.30-13.30","13.30-14.30","14.30-15.30","15.30-16.30","16.30-17.30","17.30-18.30","18.30-19.30"];
+var TIME_SLOTS = ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.30","12.30-13.30","13.30-14.30","14.30-15.30","15.30-16.30","16.30-17.30","17.30-18.30","18.30-19.30","19.30-20.30"];
 var BREAK_SLOT = "12.30-13.30";
-var RATE = 80;
+var RATE = 80; // V9: Rate สำรอง — Rate จริงต่อ slot มาจาก hourly_target ของ Apps Script
+
+// เป้าของ slot ตามประเภทงานของ LOT ที่ทำใน slot นั้น
+function slotRate(item,slot){
+  var t=item&&item.hourly_target;
+  var v=t?Number(t[slot]):NaN;
+  return Number.isFinite(v)&&v>0?v:RATE;
+}
+function currentRateOf(item){
+  var v=Number(item&&item.rate_per_hour);
+  return Number.isFinite(v)&&v>0?v:RATE;
+}
+// สรุป Rate ของวัน เช่น "สเวตเตอร์ 60 → เสื้อปกติ 80"
+function rateSummaryOf(item){
+  var plan=Array.isArray(item&&item.slot_plan)?item.slot_plan:[];
+  var parts=[];
+  plan.forEach(function(p){
+    var label=(p.type?p.type+" ":"")+num(p.rate);
+    if(!parts.length||parts[parts.length-1]!==label)parts.push(label);
+  });
+  return parts.join(" → ");
+}
 
 var dashboardData = {date:"",lines:[]};
 var currentRange = {from:"",to:""};
@@ -429,6 +450,9 @@ function dashboardSignature_(data){
 
           hourly_data:x.hourly_data||{},
           hourly_reported:x.hourly_reported||{},
+          hourly_target:x.hourly_target||{},
+          rate_per_hour:num(x.rate_per_hour),
+          current_type:x.current_type||"",
           hourly_lot:x.hourly_lot||{},
           remarks:Array.isArray(x.remarks)?x.remarks:[]
         };
@@ -507,7 +531,9 @@ function reportedActual(item){
 function targetNowFor(item,dateStr){
   if(!num(item.target))return 0;
   // ตาม logic โรง 1: เป้าตอนนี้ขยับตาม "รอบที่บันทึกจริง" ไม่ใช่นาฬิกา
-  return Math.min(num(item.target),reportedWorkingSlots(item).length*RATE);
+  // V9: แต่ละรอบใช้ Rate ตามประเภทงานของ LOT ในรอบนั้น (สเวตเตอร์ 60 / เสื้อปกติ 80)
+  var sum=reportedWorkingSlots(item).reduce(function(acc,slot){return acc+slotRate(item,slot)},0);
+  return Math.min(num(item.target),sum);
 }
 function actualPerHour(item,dateStr){
   var h=reportedWorkingSlots(item).length;
@@ -882,7 +908,7 @@ function renderCards(lines){
 
     html+='<div class="space-y-2 text-xs pt-0.5">';
     html+='<div class="font-semibold text-slate-500">ผลิตจริง/ชม. <span class="ml-1 font-extrabold text-slate-800">'+fmt(m.avg)+'</span></div>';
-    html+='<div class="font-semibold text-slate-500">เป้า/ชม. <span class="ml-1 font-extrabold text-slate-800">80</span></div>';
+    html+='<div class="font-semibold text-slate-500">เป้า/ชม. <span class="ml-1 font-extrabold text-slate-800">'+fmt(currentRateOf(item))+'</span>'+(item.current_type?'<span class="ml-1 text-[10px] font-semibold text-slate-400">'+esc(item.current_type)+'</span>':'')+'</div>';
     if(item.manpower!==null&&item.manpower!==undefined)html+='<div class="font-semibold text-slate-500">กำลังคน <span class="ml-1 font-extrabold text-indigo-600">'+esc(item.manpower)+' คน</span></div>';
     html+='</div></div>';
 
@@ -932,7 +958,9 @@ function renderDetail(item){
   var st=lineStatus(item,dateStr);
 
   el("dtTitle").innerText="LINE "+item.line;
-  el("dtBreadcrumb").innerText="Factory 2 Production • Target 80 ชิ้น/ชม.";
+  var rateSummary=rateSummaryOf(item);
+  el("dtBreadcrumb").innerText="Factory 2 Production • Target "+(rateSummary?rateSummary+" ชิ้น/ชม.":fmt(currentRateOf(item))+" ชิ้น/ชม.");
+  el("dtHourlyRateNote").innerText=rateSummary?("เป้าตามประเภทงาน: "+rateSummary+" ชิ้น/ชม."):"เป้าตามประเภทงานของ LOT";
   el("dtModel").innerText=[item.active_smpl,item.active_model].filter(Boolean).join(" / ")||item.model1||"-";
   el("dtLot").innerText=(item.active_lot||item.lot_number)?("LOT "+(item.active_lot||item.lot_number)):"-";
   el("dtTarget").innerText=fmt(target);
@@ -991,9 +1019,9 @@ function renderRemarks(item){
 
 function renderLotTable(item){
   var lots=[
-    {lot:item.lot_number,label:item.model1,target:item.target1},
-    {lot:item.lot_number2,label:item.model2,target:item.target2},
-    {lot:item.lot_number3,label:item.model3,target:item.target3}
+    {lot:item.lot_number,label:item.model1,target:item.target1,type:item.type1,rate:item.rate1},
+    {lot:item.lot_number2,label:item.model2,target:item.target2,type:item.type2,rate:item.rate2},
+    {lot:item.lot_number3,label:item.model3,target:item.target3,type:item.type3,rate:item.rate3}
   ].filter(function(x){return !!x.lot});
 
   if(!lots.length){
@@ -1006,7 +1034,7 @@ function renderLotTable(item){
     var diff=ac-num(x.target);
     return '<tr class="border-b border-slate-100 last:border-0">'+
       '<td class="py-2 font-bold text-indigo-600">'+esc(x.lot)+'</td>'+
-      '<td class="text-slate-600">'+esc(x.label||"-")+'</td>'+
+      '<td class="text-slate-600">'+esc(x.label||"-")+(num(x.rate)?'<div class="text-[10px] text-slate-400">'+esc(x.type||"")+' '+fmt(x.rate)+'/ชม.</div>':'')+'</td>'+
       '<td class="text-right font-semibold text-slate-700">'+fmt(x.target)+'</td>'+
       '<td class="text-right font-extrabold text-slate-700">'+fmt(ac)+'</td>'+
       '<td class="text-right font-extrabold '+(diff>=0?'text-emerald-600':'text-rose-600')+'">'+(diff>=0?'+':'')+diff.toLocaleString()+'</td>'+
@@ -1019,7 +1047,7 @@ function renderPulse(item,m){
   var orderActual=num(item.active_cumulative_actual);
   var orderPct=orderQty?pct(orderActual,orderQty):0;
   var remain=Math.max(0,orderQty-orderActual);
-  var pace=m.avg>0?m.avg:RATE;
+  var pace=m.avg>0?m.avg:currentRateOf(item);
   var remainHours=pace>0?remain/pace:0;
 
   el("pulseBadge").innerText="LINE "+item.line;
@@ -1043,11 +1071,11 @@ function renderHourlyChart(item){
     return plan.indexOf(s)>=0||(s===BREAK_SLOT&&plan.indexOf("13.30-14.30")>=0);
   });
   var actual=labels.map(function(s){return num((item.hourly_data||{})[s])});
-  var target=labels.map(function(s){return s===BREAK_SLOT?null:RATE});
+  var target=labels.map(function(s){return s===BREAK_SLOT?null:slotRate(item,s)});
   var actualColors=labels.map(function(s,i){
     if(s===BREAK_SLOT)return "rgba(203,213,225,.28)";
     if(!(item.hourly_reported&&item.hourly_reported[s]===true))return "rgba(203,213,225,.18)";
-    return actual[i]>=RATE?"#10B981":"#F59E0B";
+    return actual[i]>=slotRate(item,s)?"#10B981":"#F59E0B";
   });
 
   var ctx=el("hourlyChart").getContext("2d");
@@ -1058,7 +1086,7 @@ function renderHourlyChart(item){
     plugins:[breakShadePlugin],
     data:{labels:labels,datasets:[
       {label:"ผลิตได้จริง",data:actual,backgroundColor:actualColors,borderRadius:7},
-      {type:"line",label:"เป้าต่อชั่วโมง (80 ชิ้น)",data:target,borderColor:"#6366F1",borderWidth:2,borderDash:[6,5],pointRadius:0,tension:0,spanGaps:false,datalabels:{display:false}}
+      {type:"line",label:"เป้าต่อชั่วโมง",data:target,borderColor:"#6366F1",borderWidth:2,borderDash:[6,5],pointRadius:0,tension:0,stepped:"middle",spanGaps:false,datalabels:{display:false}}
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
@@ -1091,7 +1119,7 @@ function renderCumulativeChart(item){
   var ac = 0;
 
   labels.forEach(function(s,i){
-    tg += RATE;
+    tg += slotRate(item,s);
     cumulativeTarget.push(tg);
 
     if(dashboardData.isRange || i <= lastReported){

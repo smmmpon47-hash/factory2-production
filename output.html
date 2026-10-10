@@ -706,6 +706,31 @@
       overflow-wrap: anywhere;
     }
 
+    .slot-rate-text{
+      padding-left: 2px;
+      margin-top: 2px;
+      font-size: .68rem;
+      font-weight: 700;
+      color: #0f766e;
+      line-height: 1.3;
+    }
+
+    .modal-type-select:disabled{
+      background:#f1f5f9;
+      color:#0f766e;
+      font-weight:700;
+      opacity:1;
+      -webkit-text-fill-color:#0f766e;
+    }
+    .modal-type-hint{
+      min-height:16px;
+      margin-top:5px;
+      font-size:.74rem;
+      color:#64748b;
+    }
+    .modal-type-hint.lock{color:#0f766e}
+    .modal-type-hint.warn{color:#b45309}
+
     .slot-input{
       min-width: 0;
       width: 100%;
@@ -928,7 +953,7 @@
   <div id="editPlanPage" class="prod-page">
     <div class="edit-plan-note">
       ⚠️ <b>ใช้เมื่อมีการเปลี่ยนเวลาทำงานเท่านั้น</b><br>
-      โรงงาน 2 Fix Rate = 80 ชิ้น/ชม. ระบบคำนวณ Target ใหม่ให้อัตโนมัติ
+      Rate ตามประเภทงานของ LOT (เช่น สเวตเตอร์ 60 / เสื้อปกติ 80) ระบบคำนวณ Target ใหม่ให้อัตโนมัติ
     </div>
 
     <div class="form-group">
@@ -953,6 +978,7 @@
           <option value="8">8 ชั่วโมง</option>
           <option value="9">9 ชั่วโมง</option>
           <option value="10">10 ชั่วโมง</option>
+          <option value="11">11 ชั่วโมง</option>
         </select>
         <div id="editHoursHint" style="font-size:.74rem;color:#64748b;margin-top:5px;"></div>
       </div>
@@ -990,8 +1016,15 @@
       <label for="modalLotNo">เลข LOT ปลายทาง</label>
       <input type="text" id="modalLotNo" placeholder="LOT ใหม่ หรือ LOT เดิมที่ต้องการกลับไป" autocomplete="off" oninput="previewSwitchLot_()">
     </div>
-    <div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:12px;padding:10px 12px;margin-bottom:12px;color:#0f766e;font-size:.82rem;font-weight:700;">
-      🎯 โรงงาน 2 เป้าคงที่ 80 ชิ้น/ชม. — เปลี่ยน LOT แล้ว Target รายชั่วโมงไม่เปลี่ยน
+    <div class="form-group">
+      <label for="modalProductType">ประเภทงานของ LOT ปลายทาง</label>
+      <select id="modalProductType" class="modal-type-select" onchange="updateSwitchTargetPreview_()">
+        <option value="">-- เลือกประเภทงาน --</option>
+      </select>
+      <div id="modalTypeHint" class="modal-type-hint">กรอก LOT แล้วระบบจะดึงประเภทงานจาก Master ให้</div>
+    </div>
+    <div id="switchTargetPreview" style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:12px;padding:10px 12px;margin-bottom:12px;color:#0f766e;font-size:.82rem;font-weight:700;">
+      🎯 เป้ารายชั่วโมงเปลี่ยนตามประเภทงานของ LOT ปลายทาง
     </div>
     <div id="switchLotStatus" style="display:none;font-size:.78rem;border-radius:10px;padding:9px 10px;margin-bottom:10px;"></div>
 
@@ -1005,7 +1038,7 @@
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz8-wdaWStiuydILW17DSxhrprNpxHATuy4tFSrLTooTjQh65vq7NZAN7rux6XCG6tLNQ/exec"; 
   const LIFF_ID = "2011198724-P9QBl3fS"; // ใส่ Factory 2 Output LIFF ID หลังสร้าง LIFF
 
-  const FRONTEND_BUILD_LOT_SWITCH = 'FACTORY2_FIXED80_OUTPUT_V1';
+  const FRONTEND_BUILD_LOT_SWITCH = 'FACTORY2_PRODUCT_TYPE_OUTPUT_V9';
   const EXPECTED_BACKEND_LOT_SWITCH_VERSION = 'LOT_SLOT_DIRECT_AA_LOCK_20260919_V1';
   const EXPECTED_REPEAT_LOT_VERSION = 'REPEAT_LOT_20260922_V1';
   console.log('Output build:', FRONTEND_BUILD_LOT_SWITCH);
@@ -1028,6 +1061,105 @@
   let currentFinalWorkingSlot = '';
   let __lineLoadController = null;
   let __lineLoadSeq = 0;
+
+  // V9: Rate ตามประเภทงาน
+  const DEFAULT_RATE_PER_HOUR = 80;
+  const MAX_WORKING_HOURS = 11;
+  const WORKING_HOURS_OPTIONS = [8, 9, 10, 11];
+  let productTypesList = [
+    { name: 'เสื้อปกติ', rate: 80 },
+    { name: 'สเวตเตอร์', rate: 60 }
+  ];
+  let currentLotTypes = {};   // { LOT: { type, rate } } ของ LINE ที่เลือกวันนี้
+  let pendingSwitchLotInfo = null; // ผล findLot ของ LOT ปลายทาง
+
+  function escapeHtml_(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function setProductTypesList_(list) {
+    if (!Array.isArray(list) || !list.length) return;
+    const cleaned = list
+      .map(t => ({ name: String(t && t.name || '').trim(), rate: Number(t && t.rate) || 0 }))
+      .filter(t => t.name && t.rate > 0);
+    if (cleaned.length) productTypesList = cleaned;
+  }
+
+  function findProductType_(name) {
+    const key = String(name || '').trim();
+    return productTypesList.find(t => t.name === key) || null;
+  }
+
+  function rateForLot_(lot, lotTypes) {
+    const item = (lotTypes || currentLotTypes)[normalizeLot_(lot)];
+    return item && Number(item.rate) > 0 ? Number(item.rate) : DEFAULT_RATE_PER_HOUR;
+  }
+
+  function typeForLot_(lot, lotTypes) {
+    const item = (lotTypes || currentLotTypes)[normalizeLot_(lot)];
+    return item && item.type ? item.type : '';
+  }
+
+  function rateLabelForLot_(lot, lotTypes) {
+    const type = typeForLot_(lot, lotTypes);
+    const rate = rateForLot_(lot, lotTypes);
+    return `${type ? type + ' ' : ''}${rate.toLocaleString()} ชิ้น/ชม.`;
+  }
+
+  /**
+   * คิดเป้าแบบเดียวกับ Apps Script V9:
+   * เป้า = ผลรวม Rate ของทุก slot ที่ทำงาน (Rate ตามประเภทของ LOT ใน slot นั้น)
+   */
+  function computePlanTarget_(lineValue, totalHours, initialLot, history, allowedLots, lotTypes) {
+    const allocation = calculateLotHoursFromHistoryForLine_(
+      lineValue, totalHours, initialLot, history, allowedLots
+    );
+
+    const slots = getWorkingSlotsForLineValue_(lineValue, totalHours);
+    const segments = []; // [{ lot, type, rate, hours }] ตามลำดับเวลา
+    let total = 0;
+
+    slots.forEach(slot => {
+      const lot = allocation.slotLotMap[slot.label];
+      if (!lot) return;
+      const rate = rateForLot_(lot, lotTypes);
+      total += rate;
+
+      const last = segments[segments.length - 1];
+      if (last && last.lot === lot) {
+        last.hours += 1;
+      } else {
+        segments.push({ lot, type: typeForLot_(lot, lotTypes), rate, hours: 1 });
+      }
+    });
+
+    return { total, segments, slotLotMap: allocation.slotLotMap };
+  }
+
+  function describeSegments_(segments) {
+    if (!segments.length) return '';
+    return segments
+      .map(seg => `${seg.type || seg.lot} ${seg.hours} ชม. × ${seg.rate}`)
+      .join(' + ');
+  }
+
+  function recalcCurrentTarget_() {
+    const lineVal = document.getElementById('line').value;
+    if (!lineVal || !currentHours1) return;
+
+    const initialLot = normalizeLot_(currentLotPlan[0]?.lot || activeLots[0] || currentActiveLot);
+    const plan = computePlanTarget_(
+      lineVal, currentHours1, initialLot, currentLotSwitchHistory, activeLots, currentLotTypes
+    );
+
+    if (plan.total > 0) {
+      currentTarget1 = plan.total;
+      document.getElementById('targetVal').innerText = currentTarget1.toLocaleString();
+      updateHourlyAverage();
+    }
+  }
 
   async function initLiff() {
     try {
@@ -1060,7 +1192,8 @@
     { label: "15.30-16.30", endMin: 990 },
     { label: "16.30-17.30", endMin: 1050 },
     { label: "17.30-18.30", endMin: 1110 },
-    { label: "18.30-19.30", endMin: 1170 }
+    { label: "18.30-19.30", endMin: 1170 },
+    { label: "19.30-20.30", endMin: 1230 }
   ];
 
   // FAST LOAD: HTML ทั้งฟอร์มอยู่ก่อน <script> นี้แล้ว จึงเริ่มดึงข้อมูล LINE ได้ทันที
@@ -1164,9 +1297,12 @@
       const lots = getEditPlanLots_(data);
       const totalHours = getAuthoritativeTotalWorkingHours_(data) || 8;
 
-      currentEditPlanState = { line: lineVal, data, lots, totalHours };
+      const lotTypes = (data.lotTypes && typeof data.lotTypes === 'object') ? data.lotTypes : {};
+      setProductTypesList_(data.productTypes);
+
+      currentEditPlanState = { line: lineVal, data, lots, totalHours, lotTypes };
       document.getElementById('editTotalHours').value = String(totalHours);
-      document.getElementById('editHoursHint').innerText = 'Target = ชั่วโมงทำงาน × 80 ชิ้น/ชม.';
+      document.getElementById('editHoursHint').innerText = 'Target = ผลรวม Rate ของแต่ละชั่วโมง ตามประเภทงานของ LOT ที่ทำในชั่วโมงนั้น';
 
       const container = document.getElementById('editLotsContainer');
       container.innerHTML = lots.map(item => `
@@ -1178,7 +1314,7 @@
             </div>
             <span class="edit-plan-hours-badge">${item.hours} ชม.</span>
           </div>
-          <div style="font-size:.78rem;color:#0f766e;font-weight:700;">Rate คงที่ 80 ชิ้น/ชม. • Target ปัจจุบัน ${Number(item.target || 0).toLocaleString()} ชิ้น</div>
+          <div style="font-size:.78rem;color:#0f766e;font-weight:700;">Rate ${escapeHtml_(rateLabelForLot_(item.lot, lotTypes))} • Target ปัจจุบัน ${Number(item.target || 0).toLocaleString()} ชิ้น</div>
         </div>
       `).join('');
 
@@ -1199,14 +1335,41 @@
     if (!currentEditPlanState) return null;
 
     const totalHours = Math.floor(Number(document.getElementById('editTotalHours').value) || 0);
-    if (![8, 9, 10].includes(totalHours)) {
-      return { error: 'เวลาทำงานต้องเป็น 8, 9 หรือ 10 ชั่วโมง' };
+    if (!WORKING_HOURS_OPTIONS.includes(totalHours)) {
+      return { error: 'เวลาทำงานต้องเป็น 8, 9, 10 หรือ 11 ชั่วโมง' };
     }
+
+    const state = currentEditPlanState;
+    const data = state.data || {};
+    const lots = state.lots || [];
+    const allowedLots = lots.map(item => item.lot);
+
+    // ห้ามลดชั่วโมงจนตัด slot ที่บันทึกยอดแล้ว / slot ที่มีการสลับ LOT (กติกาเดียวกับ Apps Script)
+    const newSlots = new Set(getWorkingSlotsForLineValue_(state.line, totalHours).map(x => x.label));
+    const savedOutside = Object.keys(data.existingHourly || {}).find(slot => !newSlots.has(slot));
+    if (savedOutside) {
+      return { error: `ลดชั่วโมงไม่ได้ เพราะรอบ ${savedOutside} บันทึกยอดแล้ว` };
+    }
+    const switchOutside = (Array.isArray(data.lotSwitchHistory) ? data.lotSwitchHistory : [])
+      .find(item => item && item.slot && !newSlots.has(String(item.slot).trim()));
+    if (switchOutside) {
+      return { error: `ลดชั่วโมงไม่ได้ เพราะมีการสลับ LOT ที่รอบ ${switchOutside.slot}` };
+    }
+
+    const plan = computePlanTarget_(
+      state.line,
+      totalHours,
+      normalizeLot_(data.lotNumber),
+      data.lotSwitchHistory,
+      allowedLots,
+      state.lotTypes
+    );
 
     return {
       totalHours,
-      totalTarget: totalHours * 80,
-      lots: currentEditPlanState.lots || []
+      totalTarget: plan.total,
+      segments: plan.segments,
+      lots
     };
   }
 
@@ -1224,7 +1387,7 @@
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
         <div>
           <div style="font-weight:700;color:#334155;">เวลาทำงานใหม่ ${calc.totalHours} ชม.</div>
-          <div style="font-size:.76rem;color:#64748b;margin-top:3px;">80 ชิ้น/ชม. × ${calc.totalHours} ชั่วโมง</div>
+          <div style="font-size:.76rem;color:#64748b;margin-top:3px;">${escapeHtml_(describeSegments_(calc.segments))}</div>
         </div>
         <div style="font-size:1.25rem;font-weight:800;color:#0d9488;">${calc.totalTarget.toLocaleString()} ชิ้น</div>
       </div>
@@ -1347,7 +1510,7 @@
 
     for (const value of candidates) {
       const hours = Math.floor(Number(value) || 0);
-      if (hours >= 1 && hours <= 10) return hours;
+      if (hours >= 1 && hours <= MAX_WORKING_HOURS) return hours;
     }
 
     return 0;
@@ -1411,12 +1574,14 @@
       masterLotMap = data.masterMap || {};
 
       const authoritativeAAHours = Math.floor(Number(data.totalWorkingHoursAA || data.totalWorkingHours) || 0);
-      if (![8, 9, 10].includes(authoritativeAAHours)) {
+      if (!WORKING_HOURS_OPTIONS.includes(authoritativeAAHours)) {
         throw new Error('TOTAL_WORKING_HOURS_MISSING');
       }
 
       currentHours1 = authoritativeAAHours;
-      currentTarget1 = Number(data.target) || (authoritativeAAHours * 80);
+      currentLotTypes = (data.lotTypes && typeof data.lotTypes === 'object') ? data.lotTypes : {};
+      setProductTypesList_(data.productTypes);
+      currentTarget1 = Number(data.target) || (authoritativeAAHours * DEFAULT_RATE_PER_HOUR);
       currentExistingHourly = data.existingHourly || {};
       currentLoadInToday = (data.loadInToday === null || data.loadInToday === undefined || data.loadInToday === '')
         ? null
@@ -1453,6 +1618,7 @@
       currentExistingHourly = {};
       currentActiveLot = '';
       currentLotSwitchHistory = [];
+      currentLotTypes = {};
       currentHours1 = 0;
       currentLoadInToday = null;
       currentFinalWorkingSlot = '';
@@ -1626,6 +1792,7 @@
           </div>
           <input type="hidden" class="input-lot-val" value="${slotLot}">
           <div class="model-subtext">${getModelTextForLot_(slotLot)}</div>
+          ${!isBreakTime && slotLot ? `<div class="slot-rate-text">🎯 เป้า ${rateForLot_(slotLot).toLocaleString()} ชิ้น${typeForLot_(slotLot) ? ' • ' + escapeHtml_(typeForLot_(slotLot)) : ''}</div>` : ''}
         </div>
 
         <input type="number"
@@ -1669,7 +1836,7 @@
     const model = masterLotMap[normalizeLot_(currentActiveLot)] || '';
 
     if (currentActiveLot) {
-      textEl.innerText = `${currentActiveLot}${model ? ' • ' + model : ''}`;
+      textEl.innerText = `${currentActiveLot}${model ? ' • ' + model : ''} • ${rateLabelForLot_(currentActiveLot)}`;
       banner.style.display = 'block';
     } else {
       textEl.innerText = '-';
@@ -1782,7 +1949,7 @@
     const breakSlot = getBreakSlotForLine_(lineVal);
     const totalHours = Math.floor(Number(currentHours1) || 0);
 
-    if (totalHours < 1 || totalHours > 10) {
+    if (totalHours < 1 || totalHours > MAX_WORKING_HOURS) {
       return [];
     }
 
@@ -1923,9 +2090,10 @@
       outputInput: row.querySelector('.input-val')
     };
 
-    document.getElementById('modalCurrentLot').innerText = lotVal;
+    document.getElementById('modalCurrentLot').innerText = `${lotVal} (${rateLabelForLot_(lotVal)})`;
     document.getElementById('modalSwitchSlot').innerText = slotLabel;
     document.getElementById('modalLotNo').value = '';
+    resetModalProductType_();
 
     const statusBox = document.getElementById('switchLotStatus');
     if (statusBox) {
@@ -1940,6 +2108,7 @@
   function closeNewLotModal() {
     document.getElementById('newLotModal').style.display = 'none';
     document.getElementById('modalLotNo').value = '';
+    resetModalProductType_();
     pendingSwitchMode = '';
     pendingSwitchAfterSlot = '';
     pendingSwitchRow = null;
@@ -2053,14 +2222,133 @@
       .filter(Boolean);
   }
 
+  function renderModalTypeOptions_() {
+    const select = document.getElementById('modalProductType');
+    if (!select) return;
+    select.innerHTML =
+      '<option value="">-- เลือกประเภทงาน --</option>' +
+      productTypesList
+        .map(t => `<option value="${escapeHtml_(t.name)}">${escapeHtml_(t.name)} (${t.rate.toLocaleString()} ชิ้น/ชม.)</option>`)
+        .join('');
+  }
+
+  function setModalTypeHint_(message, cls) {
+    const hint = document.getElementById('modalTypeHint');
+    if (!hint) return;
+    hint.textContent = message || '';
+    hint.className = 'modal-type-hint' + (cls ? ' ' + cls : '');
+  }
+
+  function resetModalProductType_() {
+    pendingSwitchLotInfo = null;
+    renderModalTypeOptions_();
+    const select = document.getElementById('modalProductType');
+    if (select) {
+      select.disabled = false;
+      select.value = '';
+    }
+    setModalTypeHint_('กรอก LOT แล้วระบบจะดึงประเภทงานจาก Master ให้');
+    updateSwitchTargetPreview_();
+  }
+
+  /**
+   * ประเภทงานของ LOT ปลายทาง
+   * 1) LOT นี้ทำไปแล้ววันนี้ (A → B → A) → ใช้ประเภทเดิมของวันนี้ (ล็อก)
+   * 2) Master_Work มีประเภท → ใช้ของ Master (ล็อก)
+   * 3) Master ว่าง → ให้เลือก แล้ว Apps Script จะจำลง Master ให้
+   */
+  function applyModalLotType_(lot, info) {
+    const select = document.getElementById('modalProductType');
+    if (!select) return;
+
+    if (info && Array.isArray(info.productTypes)) {
+      setProductTypesList_(info.productTypes);
+      renderModalTypeOptions_();
+    }
+
+    const todayType = currentLotTypes[lot];
+
+    if (todayType && todayType.type) {
+      if (!findProductType_(todayType.type)) {
+        productTypesList = [...productTypesList, { name: todayType.type, rate: Number(todayType.rate) || DEFAULT_RATE_PER_HOUR }];
+        renderModalTypeOptions_();
+      }
+      select.value = todayType.type;
+      select.disabled = true;
+      setModalTypeHint_('🔒 LOT นี้ทำไปแล้ววันนี้ ใช้ประเภทเดิม', 'lock');
+    } else if (info && info.typeLocked && info.productType) {
+      select.value = info.productType;
+      select.disabled = true;
+      setModalTypeHint_('🔒 ประเภทงานตาม Master_Work', 'lock');
+    } else {
+      select.disabled = false;
+      select.value = '';
+      setModalTypeHint_('LOT นี้ยังไม่มีประเภทงานใน Master — เลือกครั้งเดียว ระบบจะจำให้', 'warn');
+    }
+
+    updateSwitchTargetPreview_();
+  }
+
+  function getModalSelectedType_() {
+    const select = document.getElementById('modalProductType');
+    return select ? findProductType_(select.value) : null;
+  }
+
+  /**
+   * คำนวณเป้าทั้งวันใหม่ ถ้าสลับเป็น LOT ปลายทาง ณ รอบที่กด
+   */
+  function previewTargetAfterSwitch_(newLot, type) {
+    const ctx = pendingSwitchContext;
+    const lineVal = document.getElementById('line').value;
+    if (!ctx || !lineVal || !newLot || !type) return null;
+
+    const lotTypes = Object.assign({}, currentLotTypes);
+    if (!lotTypes[newLot]) lotTypes[newLot] = { type: type.name, rate: type.rate };
+
+    const allowedLots = [...activeLots.map(normalizeLot_)];
+    if (!allowedLots.includes(newLot)) allowedLots.push(newLot);
+
+    const history = [
+      ...(Array.isArray(currentLotSwitchHistory) ? currentLotSwitchHistory : [])
+        .filter(item => String(item.slot || '').trim() !== ctx.slotLabel),
+      { slot: ctx.slotLabel, to: newLot }
+    ];
+
+    const initialLot = normalizeLot_(currentLotPlan[0]?.lot || activeLots[0] || currentActiveLot);
+    return computePlanTarget_(lineVal, currentHours1, initialLot, history, allowedLots, lotTypes);
+  }
+
+  function updateSwitchTargetPreview_() {
+    const box = document.getElementById('switchTargetPreview');
+    if (!box) return;
+
+    const lot = normalizeLot_(document.getElementById('modalLotNo')?.value);
+    const type = getModalSelectedType_();
+    const plan = (lot && type) ? previewTargetAfterSwitch_(lot, type) : null;
+
+    if (!plan) {
+      box.innerHTML = '🎯 เป้ารายชั่วโมงเปลี่ยนตามประเภทงานของ LOT ปลายทาง';
+      return;
+    }
+
+    box.innerHTML =
+      `🎯 ตั้งแต่รอบ ${escapeHtml_(pendingSwitchContext?.slotLabel || '')} เป้า <b>${type.rate.toLocaleString()} ชิ้น/ชม.</b><br>` +
+      `เป้าทั้งวันใหม่ <b>${plan.total.toLocaleString()} ชิ้น</b> ` +
+      `<span style="font-weight:600;color:#64748b;">(เดิม ${Number(currentTarget1 || 0).toLocaleString()})</span>` +
+      `<div style="font-weight:600;color:#64748b;font-size:.74rem;margin-top:3px;">${escapeHtml_(describeSegments_(plan.segments))}</div>`;
+  }
+
   async function previewSwitchLot_() {
     const lot = normalizeLot_(document.getElementById('modalLotNo')?.value);
     const box = document.getElementById('switchLotStatus');
     if (!box) return;
 
+    pendingSwitchLotInfo = null;
+
     if (!lot) {
       box.style.display = 'none';
       box.innerText = '';
+      resetModalProductType_();
       return;
     }
 
@@ -2073,13 +2361,20 @@
     try {
       const res = await fetch(`${SCRIPT_URL}?action=findLot&lot=${encodeURIComponent(lot)}&_=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
+
+      // ผู้ใช้พิมพ์ต่อไปแล้ว — ไม่เอาผลเก่ามาทับ
+      if (normalizeLot_(document.getElementById('modalLotNo')?.value) !== lot) return;
+
       if (!data.found) {
         setSwitchLotStatus_(`ไม่พบ LOT ${lot} ใน Master_Work`, 'error');
+        resetModalProductType_();
         return;
       }
 
+      pendingSwitchLotInfo = data;
       masterLotMap[lot] = data.smpl || data.model || lot;
       setSwitchLotStatus_(`✓ ${lot} • ${data.smpl || '-'} • ${data.model || '-'} • Qty ${Number(data.qty || 0).toLocaleString()}`, 'success');
+      applyModalLotType_(lot, data);
     } catch (err) {
       setSwitchLotStatus_('ตรวจสอบ LOT ไม่สำเร็จ กรุณาลองใหม่', 'error');
     }
@@ -2200,6 +2495,12 @@
         if (row.dataset.breakTime !== 'true') lotDisplay.classList.add('current');
       }
       if (modelSubtext) modelSubtext.innerText = getModelTextForLot_(newLot);
+
+      const rateText = row.querySelector('.slot-rate-text');
+      if (rateText) {
+        const type = typeForLot_(newLot);
+        rateText.innerText = `🎯 เป้า ${rateForLot_(newLot).toLocaleString()} ชิ้น${type ? ' • ' + type : ''}`;
+      }
     });
   }
 
@@ -2213,7 +2514,7 @@
   ) {
     const nextLot = normalizeLot_(newLot);
     const total = Math.floor(Number(totalWorkingHours) || 0);
-    if (!nextLot || total < 1 || total > 10 || !switchSlot) return;
+    if (!nextLot || total < 1 || total > MAX_WORKING_HOURS || !switchSlot) return;
 
     if (!activeLots.some(lot => normalizeLot_(lot) === nextLot)) {
       activeLots.push(nextLot);
@@ -2333,7 +2634,7 @@
     }
 
     const totalWorkingHours = Math.floor(Number(currentHours1) || 0);
-    if (![8, 9, 10].includes(totalWorkingHours)) {
+    if (!WORKING_HOURS_OPTIONS.includes(totalWorkingHours)) {
       alert('ไม่พบเวลาทำงานรวมจากแผนวันนี้');
       return;
     }
@@ -2351,27 +2652,39 @@
       return;
     }
 
-    // ตรวจ Master ก่อนส่ง
-    try {
-      const lotRes = await fetch(`${SCRIPT_URL}?action=findLot&lot=${encodeURIComponent(newLot)}&_=${Date.now()}`, { cache: 'no-store' });
-      const lotInfo = await lotRes.json();
-      if (!lotInfo.found) {
-        alert(`ไม่พบ LOT ${newLot} ใน Master_Work`);
+    // ตรวจ Master ก่อนส่ง (ใช้ผลที่ค้นไว้แล้วถ้าเป็น LOT เดียวกัน)
+    let lotInfo = (pendingSwitchLotInfo && normalizeLot_(pendingSwitchLotInfo.lot) === newLot) ? pendingSwitchLotInfo : null;
+    if (!lotInfo) {
+      try {
+        const lotRes = await fetch(`${SCRIPT_URL}?action=findLot&lot=${encodeURIComponent(newLot)}&_=${Date.now()}`, { cache: 'no-store' });
+        lotInfo = await lotRes.json();
+        if (!lotInfo.found) {
+          alert(`ไม่พบ LOT ${newLot} ใน Master_Work`);
+          return;
+        }
+        masterLotMap[newLot] = lotInfo.smpl || lotInfo.model || newLot;
+        pendingSwitchLotInfo = lotInfo;
+        applyModalLotType_(newLot, lotInfo);
+      } catch (err) {
+        alert('ตรวจสอบ LOT ไม่สำเร็จ กรุณาลองใหม่');
         return;
       }
-      masterLotMap[newLot] = lotInfo.smpl || lotInfo.model || newLot;
-    } catch (err) {
-      alert('ตรวจสอบ LOT ไม่สำเร็จ กรุณาลองใหม่');
+    }
+
+    const newType = getModalSelectedType_();
+    if (!newType) {
+      alert('กรุณาเลือกประเภทงานของ LOT ปลายทาง');
       return;
     }
 
+    const switchPlan = previewTargetAfterSwitch_(newLot, newType);
     const closingLot = normalizeLot_(ctx.closingLot);
     const confirmMessage =
       `ยืนยันสลับ LOT?\n\n` +
-      `LOT ปัจจุบัน: ${closingLot}\n` +
-      `LOT ปลายทาง: ${newLot}\n` +
+      `LOT ปัจจุบัน: ${closingLot} (${rateLabelForLot_(closingLot)})\n` +
+      `LOT ปลายทาง: ${newLot} (${newType.name} ${newType.rate} ชิ้น/ชม.)\n` +
       `เริ่มที่รอบ: ${switchAfterSlot}\n` +
-      `Target: 80 ชิ้น/ชม. (คงที่)`;
+      (switchPlan ? `เป้าทั้งวันใหม่: ${switchPlan.total.toLocaleString()} ชิ้น (เดิม ${Number(currentTarget1 || 0).toLocaleString()})` : '');
 
     if (!confirm(confirmMessage)) return;
 
@@ -2388,6 +2701,7 @@
       line: lineVal,
       isSwitchLot: true,
       newLotNumber: newLot,
+      productType: newType.name,
       totalWorkingHours,
       switchAfterSlot,
       clickedSlotLabel: switchAfterSlot,
@@ -2407,6 +2721,11 @@
       }
 
       currentActiveLot = newLot;
+      if (!currentLotTypes[newLot]) {
+        currentLotTypes = Object.assign({}, currentLotTypes, {
+          [newLot]: { type: newType.name, rate: newType.rate }
+        });
+      }
       applyLocalLotPlanAfterSwitch_(
         closingLot,
         newLot,
@@ -2419,6 +2738,7 @@
         delete currentExistingHourly[switchAfterSlot];
       }
 
+      recalcCurrentTarget_();
       generateSmartTimeSlots(currentHours1, currentExistingHourly);
       updateCurrentModelBanner_();
       calculateTotal();
@@ -2435,7 +2755,17 @@
             const historyOk = Array.isArray(state.lotSwitchHistory) && state.lotSwitchHistory.some(
               item => String(item.slot || '').trim() === switchAfterSlot && normalizeLot_(item.to) === newLot
             );
-            if (historyOk) return;
+            if (historyOk) {
+              // ยึดเป้า/ประเภทจากชีทเป็นค่าจริง
+              if (state.lotTypes && typeof state.lotTypes === 'object') currentLotTypes = state.lotTypes;
+              if (Number(state.target) > 0 && document.getElementById('line').value === lineVal) {
+                currentTarget1 = Number(state.target);
+                document.getElementById('targetVal').innerText = currentTarget1.toLocaleString();
+                updateHourlyAverage();
+                updateCurrentModelBanner_();
+              }
+              return;
+            }
           } catch (err) {}
         }
         showLotSwitchToast_('⚠️ ส่งข้อมูลแล้ว แต่ยังยืนยันจากชีทไม่ได้ กรุณารีโหลดก่อนกรอกต่อ', 'warn', 4500);

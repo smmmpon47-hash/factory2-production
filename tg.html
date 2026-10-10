@@ -146,7 +146,7 @@
     .lot-status.ok{color:#059669}
     .hours-btn-group{
       display:grid;
-      grid-template-columns:repeat(3,minmax(0,1fr));
+      grid-template-columns:repeat(4,minmax(0,1fr));
       gap:10px;
       margin-top:7px;
     }
@@ -185,6 +185,22 @@
       font-weight:700;
       white-space:nowrap;
     }
+    .type-group{margin-top:14px;margin-bottom:0}
+    select:disabled{
+      background:#f1f5f9;
+      color:#0f766e;
+      font-weight:700;
+      opacity:1;
+      -webkit-text-fill-color:#0f766e;
+    }
+    .type-hint{
+      min-height:18px;
+      margin-top:6px;
+      font-size:.78rem;
+      color:#64748b;
+    }
+    .type-hint.lock{color:#0f766e}
+    .type-hint.warn{color:#b45309}
     .btn-submit{
       width:100%;
       min-height:56px;
@@ -258,7 +274,7 @@
       <div class="lot-card">
         <div class="lot-header">
           <span>📦 LOT ที่เริ่มผลิต</span>
-          <span class="rate-badge">Rate: 80 ชิ้น/ชม.</span>
+          <span class="rate-badge" id="rateBadge">Rate: - ชิ้น/ชม.</span>
         </div>
 
         <div class="form-group" style="margin-bottom:0">
@@ -290,6 +306,14 @@
             </div>
           </div>
         </div>
+
+        <div class="form-group type-group">
+          <label for="productType">ประเภทงาน</label>
+          <select id="productType" required>
+            <option value="">-- เลือกประเภทงาน --</option>
+          </select>
+          <div id="typeHint" class="type-hint">กรอก LOT แล้วระบบจะดึงประเภทงานจาก Master ให้</div>
+        </div>
       </div>
 
       <div class="form-group">
@@ -298,6 +322,7 @@
           <button type="button" class="btn-hour active" data-hours="8">8 ชม.</button>
           <button type="button" class="btn-hour" data-hours="9">9 ชม.</button>
           <button type="button" class="btn-hour" data-hours="10">10 ชม.</button>
+          <button type="button" class="btn-hour" data-hours="11">11 ชม.</button>
         </div>
         <input type="hidden" id="selectedHours" value="8">
       </div>
@@ -305,10 +330,10 @@
       <div class="summary-box">
         <div>
           <div class="summary-title">เป้าหมายรวมทั้งวัน</div>
-          <div class="summary-note">80 ตัว/ชม. × เวลาทำงาน</div>
+          <div class="summary-note" id="targetNote">เลือกประเภทงานก่อน</div>
         </div>
         <div class="summary-value">
-          <span id="targetDisplay">640</span> ชิ้น
+          <span id="targetDisplay">-</span> ชิ้น
         </div>
       </div>
 
@@ -327,14 +352,18 @@
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz8-wdaWStiuydILW17DSxhrprNpxHATuy4tFSrLTooTjQh65vq7NZAN7rux6XCG6tLNQ/exec";
   const LIFF_ID = "2011196323-C61IfM50";
 
-  const RATE_PER_HOUR = 80;
+  // V9: Rate ตามประเภทงาน — รายการจริงโหลดจาก Apps Script (ชีท Product_Types)
+  let productTypes = [
+    { name: "เสื้อปกติ", rate: 80 },
+    { name: "สเวตเตอร์", rate: 60 }
+  ];
 
   let userDisplayName = "Unknown";
   let lastLotLookup = null;
   let lotLookupTimer = null;
   let lotLookupController = null;
   const lotLookupCache = new Map();
-  const LOT_CACHE_PREFIX = "factory2LotLookup:";
+  const LOT_CACHE_PREFIX = "factory2LotLookupV9:";
 
   function getCachedLot_(lot) {
     if (lotLookupCache.has(lot)) return lotLookupCache.get(lot);
@@ -403,11 +432,88 @@
     return Number(value || 0).toLocaleString("th-TH");
   }
 
+  function getSelectedType_() {
+    const name = document.getElementById("productType").value;
+    return productTypes.find(t => t.name === name) || null;
+  }
+
+  function renderTypeOptions_() {
+    const select = document.getElementById("productType");
+    const current = select.value;
+
+    select.innerHTML =
+      `<option value="">-- เลือกประเภทงาน --</option>` +
+      productTypes
+        .map(t => `<option value="${t.name}">${t.name} (${formatNumber(t.rate)} ชิ้น/ชม.)</option>`)
+        .join("");
+
+    if (productTypes.some(t => t.name === current)) select.value = current;
+  }
+
+  function setProductTypes_(list) {
+    if (!Array.isArray(list) || !list.length) return;
+    productTypes = list
+      .map(t => ({ name: String(t.name || "").trim(), rate: Number(t.rate) || 0 }))
+      .filter(t => t.name && t.rate > 0);
+    renderTypeOptions_();
+    updateTarget();
+  }
+
+  async function loadProductTypes_() {
+    try {
+      const res = await fetch(`${SCRIPT_URL}?action=getBootstrap&_=${Date.now()}`, { cache: "no-store" });
+      const data = await res.json();
+      setProductTypes_(data && data.productTypes);
+    } catch (err) {
+      console.warn("load product types", err);
+    }
+  }
+
   function updateTarget() {
     const hours = Number(document.getElementById("selectedHours").value) || 8;
-    const target = hours * RATE_PER_HOUR;
-    document.getElementById("targetDisplay").textContent = formatNumber(target);
+    const type = getSelectedType_();
+
+    document.getElementById("rateBadge").textContent =
+      `Rate: ${type ? formatNumber(type.rate) : "-"} ชิ้น/ชม.`;
+
+    if (!type) {
+      document.getElementById("targetDisplay").textContent = "-";
+      document.getElementById("targetNote").textContent = "เลือกประเภทงานก่อน";
+      return;
+    }
+
+    document.getElementById("targetDisplay").textContent = formatNumber(hours * type.rate);
+    document.getElementById("targetNote").textContent =
+      `${type.name} ${formatNumber(type.rate)} ตัว/ชม. × ${hours} ชม.`;
   }
+
+  function setTypeHint_(message, cls) {
+    const hint = document.getElementById("typeHint");
+    hint.textContent = message || "";
+    hint.className = "type-hint" + (cls ? " " + cls : "");
+  }
+
+  function applyLotType_(data, keepSelection) {
+    const select = document.getElementById("productType");
+    const previous = select.value;
+
+    if (data && Array.isArray(data.productTypes)) setProductTypes_(data.productTypes);
+
+    if (data && data.typeLocked && data.productType) {
+      select.value = data.productType;
+      select.disabled = true;
+      setTypeHint_("🔒 ประเภทงานตาม Master_Work", "lock");
+    } else {
+      select.disabled = false;
+      // ค้น LOT เดิมซ้ำ (เช่น ตอน blur) ไม่ล้างประเภทที่ผู้ใช้เลือกไว้
+      select.value = keepSelection ? previous : "";
+      setTypeHint_("LOT นี้ยังไม่มีประเภทงานใน Master — เลือกครั้งเดียว ระบบจะจำให้", "warn");
+    }
+
+    updateTarget();
+  }
+
+  document.getElementById("productType").addEventListener("change", updateTarget);
 
   document.querySelectorAll(".btn-hour").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -424,6 +530,11 @@
 
   function resetLotInfo(message, cls) {
     lastLotLookup = null;
+    const typeSelect = document.getElementById("productType");
+    typeSelect.disabled = false;
+    typeSelect.value = "";
+    setTypeHint_("กรอก LOT แล้วระบบจะดึงประเภทงานจาก Master ให้");
+    updateTarget();
     document.getElementById("lotInfo").classList.remove("show");
     const status = document.getElementById("lotStatus");
     status.textContent = message || "";
@@ -431,6 +542,7 @@
   }
 
   function showLotLookupResult(data) {
+    const sameLot = !!(lastLotLookup && data && lastLotLookup.lot === data.lot);
     lastLotLookup = data;
 
     document.getElementById("lotSmpl").textContent = data.smpl || "-";
@@ -443,6 +555,8 @@
     const status = document.getElementById("lotStatus");
     status.textContent = "✓ พบข้อมูล LOT";
     status.className = "lot-status ok";
+
+    applyLotType_(data, sameLot);
   }
 
   async function lookupLot() {
@@ -576,6 +690,12 @@
       }
     }
 
+    const productType = document.getElementById("productType").value;
+    if (!productType) {
+      alert("กรุณาเลือกประเภทงาน");
+      return;
+    }
+
     if (!SCRIPT_URL || SCRIPT_URL.includes("PASTE_")) {
       alert("ยังไม่ได้ใส่ Apps Script /exec URL");
       return;
@@ -589,6 +709,7 @@
       line,
       manpower,
       lotNumber: lot,
+      productType,
       workingHours,
       updatedBy: userDisplayName
     };
@@ -603,7 +724,7 @@
 
       if (result.status === "success") {
         alert(
-          `บันทึกเรียบร้อย\nLINE ${line}\nLOT ${lot}\nเป้าหมาย ${formatNumber(result.target)} ตัว`
+          `บันทึกเรียบร้อย\nLINE ${line}\nLOT ${lot}\nประเภท ${result.productType || productType} (${formatNumber(result.ratePerHour)} ตัว/ชม.)\nเป้าหมาย ${formatNumber(result.target)} ตัว`
         );
 
         if (
@@ -629,7 +750,9 @@
     }
   });
 
+  renderTypeOptions_();
   updateTarget();
+  loadProductTypes_();
   if (window.__liffSdkLoaded || typeof liff !== "undefined") {
     window.startLiffInit_();
   }
