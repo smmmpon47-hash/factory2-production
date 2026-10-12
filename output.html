@@ -706,6 +706,27 @@
       overflow-wrap: anywhere;
     }
 
+    .slot-order-text{
+      grid-column: 1 / -1;
+      margin-top: 4px;
+      font-size: .72rem;
+      font-weight: 700;
+      color: #64748b;
+      line-height: 1.3;
+    }
+    .slot-order-text.warn{ color:#b45309; }
+    .slot-order-text.error{ color:#dc2626; }
+    .slot-input.order-over{
+      border-color:#dc2626 !important;
+      background:#fef2f2 !important;
+      color:#b91c1c !important;
+    }
+    .slot-input.order-full{
+      background:#f1f5f9 !important;
+      color:#94a3b8 !important;
+      cursor:not-allowed;
+    }
+
     .slot-rate-text{
       padding-left: 2px;
       margin-top: 2px;
@@ -1063,6 +1084,7 @@
     { name: 'สเวตเตอร์', rate: 60 }
   ];
   let currentLotTypes = {};   // { LOT: { type, rate } } ของ LINE ที่เลือกวันนี้
+  let currentLotOrder = {};   // V11: { LOT: { qty, produced, remaining, limited, complete } } ยอดสะสมโรง 2 ทุกไลน์
   let pendingSwitchLotInfo = null; // ผล findLot ของ LOT ปลายทาง
 
   function escapeHtml_(value) {
@@ -1623,6 +1645,7 @@
 
       currentHours1 = authoritativeAAHours;
       currentLotTypes = (data.lotTypes && typeof data.lotTypes === 'object') ? data.lotTypes : {};
+      currentLotOrder = (data.lotOrder && typeof data.lotOrder === 'object') ? data.lotOrder : {};
       setProductTypesList_(data.productTypes);
       currentTarget1 = Number(data.target) || (authoritativeAAHours * DEFAULT_RATE_PER_HOUR);
       currentExistingHourly = data.existingHourly || {};
@@ -1662,6 +1685,7 @@
       currentActiveLot = '';
       currentLotSwitchHistory = [];
       currentLotTypes = {};
+      currentLotOrder = {};
       currentHours1 = 0;
       currentLoadInToday = null;
       currentFinalWorkingSlot = '';
@@ -1846,6 +1870,8 @@
                value="${currentOutput}"
                oninput="calculateTotal()"
                ${isBreakTime ? 'readonly style="background-color:#f1f5f9;color:#94a3b8;cursor:not-allowed;"' : ''}>
+
+        ${!isBreakTime ? `<div class="slot-order-text"></div>` : ''}
 
         ${!isBreakTime ? `
           <div class="slot-remark-wrap">
@@ -2391,8 +2417,18 @@
 
       pendingSwitchLotInfo = data;
       masterLotMap[lot] = data.smpl || data.model || lot;
-      setSwitchLotStatus_(`✓ ${lot} • ${data.smpl || '-'} • ${data.model || '-'} • Qty ${Number(data.qty || 0).toLocaleString()}`, 'success');
+      if (data.order) currentLotOrder[lot] = data.order;
       applyModalLotType_(lot, data);
+
+      if (data.order && data.order.complete) {
+        setSwitchLotStatus_(`⛔ LOT ${lot} ครบออเดอร์แล้ว (${Number(data.order.qty).toLocaleString()} ตัว) ไม่สามารถสลับไปผลิตได้`, 'error');
+        return;
+      }
+
+      const remainText = data.order && data.order.limited
+        ? ` • คงเหลือ ${Number(data.order.remaining).toLocaleString()} / ${Number(data.order.qty).toLocaleString()}`
+        : ` • Qty ${Number(data.qty || 0).toLocaleString()}`;
+      setSwitchLotStatus_(`✓ ${lot} • ${data.smpl || '-'} • ${data.model || '-'}${remainText}`, 'success');
     } catch (err) {
       setSwitchLotStatus_('ตรวจสอบ LOT ไม่สำเร็จ กรุณาลองใหม่', 'error');
     }
@@ -2689,6 +2725,12 @@
       }
     }
 
+    if (lotInfo && lotInfo.order) currentLotOrder[newLot] = lotInfo.order;
+    if (lotInfo && lotInfo.order && lotInfo.order.complete) {
+      alert(`LOT ${newLot} ครบออเดอร์แล้ว (${Number(lotInfo.order.qty).toLocaleString()} ตัว) ไม่สามารถสลับไปผลิตได้`);
+      return;
+    }
+
     const newType = getModalSelectedType_();
     if (!newType) {
       alert('กรุณาเลือกประเภทงานของ LOT ปลายทาง');
@@ -2808,6 +2850,96 @@
       total += (Number(input.value) || 0);
     });
     document.getElementById('totalSum').value = total.toLocaleString();
+    updateOrderLimits_();
+  }
+
+  /**
+   * V11: ล็อกไม่ให้ยอดสะสมของ LOT เกิน Qty ใน Master_Work (ตรงเป๊ะ)
+   * ยอดสะสม = ทุกไลน์ในโรง 2 ทุกวัน • Apps Script เช็กซ้ำอีกรอบตอนบันทึก
+   * คืนค่า error message แรก (ถ้ามี) ไว้ใช้ตอนกดบันทึก
+   */
+  function updateOrderLimits_() {
+    const rows = Array.from(document.querySelectorAll('.slot-row'))
+      .filter(row => row.dataset.breakTime !== 'true');
+
+    // ยอดของแถวที่แสดงอยู่ซึ่งบันทึกไปแล้ว — ถูกนับใน produced แล้ว ต้องหักออกก่อน
+    const savedVisibleByLot = {};
+    const inputByLot = {};
+    const info = rows.map(row => {
+      const label = String(row.dataset.slotLabel || '').trim();
+      const lot = normalizeLot_(row.querySelector('.input-lot-val')?.value);
+      const input = row.querySelector('.input-val');
+      const saved = currentExistingHourly && currentExistingHourly[label];
+      if (saved && saved.output !== undefined && saved.output !== '' && normalizeLot_(saved.lot) === lot) {
+        savedVisibleByLot[lot] = (savedVisibleByLot[lot] || 0) + (Number(saved.output) || 0);
+      }
+      const value = input && input.value !== '' ? Number(input.value) || 0 : 0;
+      inputByLot[lot] = (inputByLot[lot] || 0) + value;
+      return { row, lot, input, value, hasValue: !!(input && input.value !== '') };
+    });
+
+    let firstError = '';
+    const usedBeforeByLot = {}; // ไล่ตามลำดับเวลา — รอบที่มาก่อนได้ยอดก่อน
+
+    info.forEach(item => {
+      const usedBefore = usedBeforeByLot[item.lot] || 0;
+      usedBeforeByLot[item.lot] = usedBefore + item.value;
+      const textEl = item.row.querySelector('.slot-order-text');
+      const order = currentLotOrder[item.lot];
+      if (!item.input || !textEl) return;
+
+      item.input.classList.remove('order-over', 'order-full');
+
+      if (!order || !order.limited || !(Number(order.qty) > 0)) {
+        if (item.input.dataset.orderLocked === '1') {
+          item.input.disabled = false;
+          item.input.placeholder = '0';
+          delete item.input.dataset.orderLocked;
+        }
+        textEl.textContent = '';
+        textEl.className = 'slot-order-text';
+        return;
+      }
+
+      const qty = Number(order.qty) || 0;
+      const base = Math.max(0, (Number(order.produced) || 0) - (savedVisibleByLot[item.lot] || 0));
+      const rowMax = Math.max(0, qty - base - usedBefore);
+
+      if (rowMax <= 0 && !item.hasValue) {
+        item.input.disabled = true;
+        item.input.dataset.orderLocked = '1';
+        item.input.placeholder = '-';
+        item.input.classList.add('order-full');
+        textEl.textContent = `🔒 ไม่สามารถกรอกได้ เนื่องจาก LOT ${item.lot} ครบออเดอร์แล้ว (${qty.toLocaleString()} ตัว) • กด "เปลี่ยนรุ่น" เพื่อขึ้น LOT ใหม่`;
+        textEl.className = 'slot-order-text error';
+        return;
+      }
+
+      if (item.input.dataset.orderLocked === '1') {
+        item.input.disabled = false;
+        item.input.placeholder = '0';
+        delete item.input.dataset.orderLocked;
+      }
+
+      if (item.value > rowMax) {
+        item.input.classList.add('order-over');
+        const msg = rowMax > 0
+          ? `LOT ${item.lot} เหลืออีก ${rowMax.toLocaleString()} ตัว กรอกได้ไม่เกิน ${rowMax.toLocaleString()} ตัว`
+          : `ไม่สามารถกรอกได้ เนื่องจาก LOT ${item.lot} ครบออเดอร์แล้ว (${qty.toLocaleString()} ตัว)`;
+        textEl.textContent = '⛔ ' + msg;
+        textEl.className = 'slot-order-text error';
+        if (!firstError) firstError = `รอบ ${item.row.dataset.slotLabel}: ${msg}`;
+        return;
+      }
+
+      const left = rowMax - item.value;
+      textEl.textContent = left <= 0
+        ? `✅ LOT ${item.lot} ครบออเดอร์พอดี (${qty.toLocaleString()} ตัว)`
+        : `📦 ออเดอร์คงเหลือ ${left.toLocaleString()} / ${qty.toLocaleString()} ตัว`;
+      textEl.className = 'slot-order-text' + (left <= 0 || left < qty * 0.05 ? ' warn' : '');
+    });
+
+    return firstError;
   }
 
   // ปรับปรุงฟังก์ชันบันทึกยอดให้ยิงแบบ no-cors การันตีผ่าน 100% บนมือถือ
@@ -2844,6 +2976,15 @@
       } catch (e) {
         console.warn("LIFF profile skipped:", e);
       }
+    }
+
+    // V11: ห้ามบันทึกเกินยอดออเดอร์
+    const orderError = updateOrderLimits_();
+    if (orderError) {
+      alert(orderError);
+      btnSubmit.disabled = false;
+      btnSubmit.innerText = "บันทึกยอด";
+      return;
     }
 
     const hourlyDetails = [];

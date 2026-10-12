@@ -304,6 +304,10 @@
               <span>Qty</span>
               <strong id="lotQty">-</strong>
             </div>
+            <div class="lot-info-row" id="lotRemainRow" style="display:none">
+              <span>ออเดอร์คงเหลือ</span>
+              <strong id="lotRemain">-</strong>
+            </div>
           </div>
         </div>
 
@@ -363,7 +367,7 @@
   let lotLookupTimer = null;
   let lotLookupController = null;
   const lotLookupCache = new Map();
-  const LOT_CACHE_PREFIX = "factory2LotLookupV9:";
+  const LOT_CACHE_PREFIX = "factory2LotLookupV11:";
 
   function getCachedLot_(lot) {
     if (lotLookupCache.has(lot)) return lotLookupCache.get(lot);
@@ -552,9 +556,25 @@
 
     document.getElementById("lotInfo").classList.add("show");
 
+    // V11: ยอดคงเหลือของออเดอร์ (ยอดสะสมทุกไลน์ในโรง 2)
+    const order = data.order;
+    const remainRow = document.getElementById("lotRemainRow");
+    if (order && order.limited) {
+      remainRow.style.display = "flex";
+      document.getElementById("lotRemain").textContent =
+        `${formatNumber(order.remaining)} / ${formatNumber(order.qty)} ตัว`;
+    } else {
+      remainRow.style.display = "none";
+    }
+
     const status = document.getElementById("lotStatus");
-    status.textContent = "✓ พบข้อมูล LOT";
-    status.className = "lot-status ok";
+    if (order && order.complete) {
+      status.textContent = `⛔ LOT ${data.lot} ครบออเดอร์แล้ว ไม่สามารถตั้งเป้าได้`;
+      status.className = "lot-status error";
+    } else {
+      status.textContent = "✓ พบข้อมูล LOT";
+      status.className = "lot-status ok";
+    }
 
     applyLotType_(data, sameLot);
   }
