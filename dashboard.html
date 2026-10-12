@@ -316,9 +316,14 @@ Chart.register(ChartDataLabels);
 
 var breakShadePlugin = {
   id: "breakShade",
-  beforeDatasetsDraw: function(chart) {
+  beforeDatasetsDraw: function(chart, args, pluginOptions) {
     var labels = (chart.data && chart.data.labels) || [];
-    var breakIndex = labels.indexOf(BREAK_SLOT);
+    var slots = (pluginOptions && pluginOptions.slots) || BREAK_SLOTS;
+    slots.forEach(function(slot){ drawBreakShade_(chart, labels, labels.indexOf(slot), slot); });
+  }
+};
+
+function drawBreakShade_(chart, labels, breakIndex, slot) {
     if (breakIndex < 0) return;
 
     var x = chart.scales && chart.scales.x;
@@ -343,15 +348,64 @@ var breakShadePlugin = {
     ctx.font = "600 10px Kanit";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillText("พักเที่ยง", center, area.top + 8);
+    ctx.fillText(isLunchSlot_(slot) ? "พักเที่ยง" : "พัก", center, area.top + 8);
     ctx.restore();
-  }
-};
+}
 
 var GAS_API_URL = "https://script.google.com/macros/s/AKfycbz8-wdaWStiuydILW17DSxhrprNpxHATuy4tFSrLTooTjQh65vq7NZAN7rux6XCG6tLNQ/exec";
 var LINE_CODES = ["201","202","203","204","205","206"];
-var TIME_SLOTS = ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.30","12.30-13.30","13.30-14.30","14.30-15.30","15.30-16.30","16.30-17.30","17.30-18.30","18.30-19.30","19.30-20.30"];
+// ============================================================
+// ตารางเวลาแยกตามวันที่ (ต้องตรงกับ Apps Script)
+// ก่อน 14/10/2026 = ตารางเดิม 08.30 • ตั้งแต่ 14/10/2026 = ตารางใหม่ 08.00
+// ใหม่: พักเที่ยง 12.00-13.00 • 9 ชม. ทำ 17.00-18.00 ต่อ • 10-11 ชม. พัก 17.00-18.00
+// ============================================================
+var SCHEDULE_V2_START_DATE = "2026-10-14";
+var V1_TIME_SLOTS = ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.30","12.30-13.30","13.30-14.30","14.30-15.30","15.30-16.30","16.30-17.30","17.30-18.30","18.30-19.30","19.30-20.30"];
+var V2_TIME_SLOTS = ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","12.00-13.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00","17.00-18.00","18.00-19.00","19.00-20.00","20.00-21.00"];
+var V2_BASE_8 = ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00"];
+var V2_WORKING = {
+  8: V2_BASE_8,
+  9: V2_BASE_8.concat(["17.00-18.00"]),
+  10: V2_BASE_8.concat(["18.00-19.00","19.00-20.00"]),
+  11: V2_BASE_8.concat(["18.00-19.00","19.00-20.00","20.00-21.00"])
+};
+
+// ค่าที่ใช้กับมุมมองปัจจุบัน — เปลี่ยนตามวันที่ที่เลือกดู (applySchedule_)
+var TIME_SLOTS = V1_TIME_SLOTS.slice();
 var BREAK_SLOT = "12.30-13.30";
+var BREAK_SLOTS = ["12.30-13.30"];
+var VIEW_DATE = "";
+
+function isV2Date_(d){ return String(d||"") >= SCHEDULE_V2_START_DATE; }
+function isLunchSlot_(slot){ return slot === "12.30-13.30" || slot === "12.00-13.00"; }
+function slotStartMin_(slot){
+  var p=String(slot||"").split("-")[0].split(".");
+  return Number(p[0])*60+Number(p[1]||0);
+}
+function breakSlotsFor_(d, hours){
+  if(!isV2Date_(d)) return ["12.30-13.30"];
+  return num(hours)>=10 ? ["12.00-13.00","17.00-18.00"] : ["12.00-13.00"];
+}
+function itemBreakSlots_(item){
+  if(item && Array.isArray(item.break_slots) && item.break_slots.length) return item.break_slots;
+  return breakSlotsFor_(VIEW_DATE, item && item.total_working_hours);
+}
+
+// ช่วงวันที่ข้ามวันเปลี่ยนตาราง จะแสดง slot ของทั้งสองตารางเรียงตามเวลา
+function applySchedule_(fromDate, toDate){
+  var from=String(fromDate||todayLocal());
+  var to=String(toDate||from);
+  VIEW_DATE=from;
+  var set={};
+  if(!isV2Date_(from)) V1_TIME_SLOTS.forEach(function(s){set[s]=1});
+  if(isV2Date_(to)) V2_TIME_SLOTS.forEach(function(s){set[s]=1});
+  if(!Object.keys(set).length) V1_TIME_SLOTS.forEach(function(s){set[s]=1});
+  TIME_SLOTS=Object.keys(set).sort(function(a,b){return slotStartMin_(a)-slotStartMin_(b)});
+  BREAK_SLOTS=[];
+  if(!isV2Date_(from)) BREAK_SLOTS.push("12.30-13.30");
+  if(isV2Date_(to)) BREAK_SLOTS.push("12.00-13.00","17.00-18.00");
+  BREAK_SLOT=BREAK_SLOTS[0];
+}
 var RATE = 80; // V9: Rate สำรอง — Rate จริงต่อ slot มาจาก hourly_target ของ Apps Script
 
 // เป้าของ slot ตามประเภทงานของ LOT ที่ทำใน slot นั้น
@@ -509,7 +563,9 @@ function daysInclusive(from,to){
   return out;
 }
 function plannedSlots(hours){
-  return TIME_SLOTS.filter(function(s){return s!==BREAK_SLOT}).slice(0,Math.max(0,num(hours)||8));
+  var h=Math.max(0,num(hours)||8);
+  if(isV2Date_(VIEW_DATE)) return (V2_WORKING[h]||V2_WORKING[8]).slice();
+  return V1_TIME_SLOTS.filter(function(s){return s!=="12.30-13.30"}).slice(0,h);
 }
 function slotEndMinutes(slot){
   var right=String(slot||"").split("-")[1]||"";
@@ -649,6 +705,7 @@ function blankLine(code){
 }
 
 function mergeRange(payloads,from,to){
+  applySchedule_(from,to);
   var map={};
   LINE_CODES.forEach(function(c){map[c]=blankLine(c)});
   payloads.forEach(function(data){
@@ -745,6 +802,7 @@ async function loadDashboard(showLoading){
 }
 
 function renderAll(){
+  if(!dashboardData.isRange) applySchedule_(dashboardData.date||currentRange.from);
   var lines=Array.isArray(dashboardData.lines)?dashboardData.lines:[];
   var totalTarget=lines.reduce(function(s,d){return s+num(d.target)},0);
   var totalActual=lines.reduce(function(s,d){return s+num(d.actual)},0);
@@ -1066,14 +1124,22 @@ function renderPulse(item,m){
 }
 
 function renderHourlyChart(item){
-  var plan=dashboardData.isRange?TIME_SLOTS:plannedSlots(item.total_working_hours);
+  // มุมมองหลายวัน: แต่ละ LINE/วันพักเย็นไม่เหมือนกัน จึงแรเงาเฉพาะพักเที่ยง
+  var breaks=dashboardData.isRange?TIME_SLOTS.filter(isLunchSlot_):itemBreakSlots_(item);
+  var plan=dashboardData.isRange?TIME_SLOTS.filter(function(s){return !isLunchSlot_(s)}):plannedSlots(item.total_working_hours);
+  var firstMin=plan.length?slotStartMin_(plan[0]):0;
+  var lastMin=plan.length?slotStartMin_(plan[plan.length-1]):0;
+  // แสดงช่วงพักที่อยู่ระหว่างชั่วโมงทำงานเป็นแถบสีเทา
   var labels=TIME_SLOTS.filter(function(s){
-    return plan.indexOf(s)>=0||(s===BREAK_SLOT&&plan.indexOf("13.30-14.30")>=0);
+    if(plan.indexOf(s)>=0)return true;
+    var m=slotStartMin_(s);
+    return breaks.indexOf(s)>=0&&m>firstMin&&m<lastMin;
   });
+  var isBreak=function(s){return breaks.indexOf(s)>=0&&plan.indexOf(s)<0};
   var actual=labels.map(function(s){return num((item.hourly_data||{})[s])});
-  var target=labels.map(function(s){return s===BREAK_SLOT?null:slotRate(item,s)});
+  var target=labels.map(function(s){return isBreak(s)?null:slotRate(item,s)});
   var actualColors=labels.map(function(s,i){
-    if(s===BREAK_SLOT)return "rgba(203,213,225,.28)";
+    if(isBreak(s))return "rgba(203,213,225,.28)";
     if(!(item.hourly_reported&&item.hourly_reported[s]===true))return "rgba(203,213,225,.18)";
     return actual[i]>=slotRate(item,s)?"#10B981":"#F59E0B";
   });
@@ -1091,6 +1157,7 @@ function renderHourlyChart(item){
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
       plugins:{
+        breakShade:{slots:labels.filter(isBreak)},
         legend:{labels:{boxWidth:10,font:{family:"Kanit",size:10}}},
         datalabels:{color:"#fff",font:{family:"Kanit",weight:"bold",size:9},formatter:function(v){return v>0?v:""}}
       },
@@ -1105,7 +1172,7 @@ function renderHourlyChart(item){
 function renderCumulativeChart(item){
   // กราฟนี้ไม่แสดงช่วงพัก: ใช้เฉพาะ productive slots เท่านั้น
   var labels = dashboardData.isRange
-    ? TIME_SLOTS.filter(function(s){ return s !== BREAK_SLOT; })
+    ? TIME_SLOTS.filter(function(s){ return !isLunchSlot_(s); })
     : plannedSlots(item.total_working_hours);
 
   var lastReported = -1;

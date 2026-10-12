@@ -1173,7 +1173,13 @@
     }
   }
 
-  const TIME_SLOTS_DEF = [
+  // ============================================================
+  // ตารางเวลาแยกตามวันที่ (ต้องตรงกับ Apps Script)
+  // ก่อน 14/10/2026 = ตารางเดิม 08.30 • ตั้งแต่ 14/10/2026 = ตารางใหม่ 08.00
+  // ============================================================
+  const SCHEDULE_V2_START_DATE = '2026-10-14';
+
+  const V1_TIME_SLOTS_DEF = [
     { label: "08.30-09.30", endMin: 570 },
     { label: "09.30-10.30", endMin: 630 },
     { label: "10.30-11.30", endMin: 690 },
@@ -1187,6 +1193,51 @@
     { label: "18.30-19.30", endMin: 1170 },
     { label: "19.30-20.30", endMin: 1230 }
   ];
+
+  const V2_TIME_SLOTS_DEF = [
+    { label: "08.00-09.00", endMin: 540 },
+    { label: "09.00-10.00", endMin: 600 },
+    { label: "10.00-11.00", endMin: 660 },
+    { label: "11.00-12.00", endMin: 720 },
+    { label: "12.00-13.00", endMin: 780 },
+    { label: "13.00-14.00", endMin: 840 },
+    { label: "14.00-15.00", endMin: 900 },
+    { label: "15.00-16.00", endMin: 960 },
+    { label: "16.00-17.00", endMin: 1020 },
+    { label: "17.00-18.00", endMin: 1080 },
+    { label: "18.00-19.00", endMin: 1140 },
+    { label: "19.00-20.00", endMin: 1200 },
+    { label: "20.00-21.00", endMin: 1260 }
+  ];
+
+  const V2_BASE_8 = ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00"];
+  const V2_WORKING_SLOTS = {
+    8: V2_BASE_8,
+    9: V2_BASE_8.concat(["17.00-18.00"]),
+    10: V2_BASE_8.concat(["18.00-19.00","19.00-20.00"]),
+    11: V2_BASE_8.concat(["18.00-19.00","19.00-20.00","20.00-21.00"])
+  };
+
+  function todayBangkok_() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    } catch (_) {
+      const d = new Date(Date.now() + 7 * 3600 * 1000);
+      return d.toISOString().slice(0, 10);
+    }
+  }
+
+  const SCHEDULE_IS_V2 = todayBangkok_() >= SCHEDULE_V2_START_DATE;
+  const TIME_SLOTS_DEF = SCHEDULE_IS_V2 ? V2_TIME_SLOTS_DEF : V1_TIME_SLOTS_DEF;
+
+  // ช่วงพักของวันนี้ตามชั่วโมงทำงาน
+  // ใหม่: 12.00-13.00 เสมอ • 17.00-18.00 เฉพาะ 10-11 ชม. (9 ชม. ทำต่อไม่พัก)
+  function getBreakSlotsForHours_(totalHours) {
+    if (!SCHEDULE_IS_V2) return ['12.30-13.30'];
+    return Math.floor(Number(totalHours) || 0) >= 10
+      ? ['12.00-13.00', '17.00-18.00']
+      : ['12.00-13.00'];
+  }
 
   // FAST LOAD: HTML ทั้งฟอร์มอยู่ก่อน <script> นี้แล้ว จึงเริ่มดึงข้อมูล LINE ได้ทันที
   // ไม่ต้องรอ DOMContentLoaded / LIFF / Google Font ให้เสร็จก่อน
@@ -1340,12 +1391,12 @@
     const newSlots = new Set(getWorkingSlotsForLineValue_(state.line, totalHours).map(x => x.label));
     const savedOutside = Object.keys(data.existingHourly || {}).find(slot => !newSlots.has(slot));
     if (savedOutside) {
-      return { error: `ลดชั่วโมงไม่ได้ เพราะรอบ ${savedOutside} บันทึกยอดแล้ว` };
+      return { error: `เปลี่ยนเป็น ${totalHours} ชม. ไม่ได้ เพราะรอบ ${savedOutside} บันทึกยอดแล้ว` };
     }
     const switchOutside = (Array.isArray(data.lotSwitchHistory) ? data.lotSwitchHistory : [])
       .find(item => item && item.slot && !newSlots.has(String(item.slot).trim()));
     if (switchOutside) {
-      return { error: `ลดชั่วโมงไม่ได้ เพราะมีการสลับ LOT ที่รอบ ${switchOutside.slot}` };
+      return { error: `เปลี่ยนเป็น ${totalHours} ชม. ไม่ได้ เพราะมีการสลับ LOT ที่รอบ ${switchOutside.slot}` };
     }
 
     const plan = computePlanTarget_(
@@ -1692,16 +1743,17 @@
     slotsContainer.innerHTML = '';
 
     const selectedLine = document.getElementById('line').value.toUpperCase();
-    const breakSlot = "12.30-13.30";
+    const breakSlots = getBreakSlotsForHours_(totalHours);
+    const breakSlot = breakSlots[0];
 
     const now = new Date();
     const currentMinutes = (now.getHours() * 60) + now.getMinutes();
 
     // IMPORTANT — โรง 2:
     // ต้องคัดจาก "รอบทำงานตามชั่วโมงที่ตั้งไว้" ก่อนเสมอ
-    // 8 ชม. จบที่ 16.30-17.30
-    // 9 ชม. จบที่ 17.30-18.30
-    // 10 ชม. จบที่ 18.30-19.30
+    // ตารางใหม่ (ตั้งแต่ 14/10): 8 ชม. จบ 16.00-17.00 • 9 ชม. จบ 17.00-18.00 (ไม่พักเย็น)
+    // 10 ชม. พัก 17.00-18.00 แล้วจบ 19.00-20.00 • 11 ชม. จบ 20.00-21.00
+    // ตารางเดิม: 8 ชม. จบ 16.30-17.30 • 9 ชม. 17.30-18.30 • 10 ชม. 18.30-19.30
     // ห้ามเอา OT ที่ไม่ได้อยู่ในแผนมาแสดงเพียงเพราะเวลาปัจจุบันเลยไปแล้ว
     const plannedWorkingSlots = getWorkingSlotsForLineValue_(
       selectedLine,
@@ -1725,7 +1777,7 @@
 
     const seenSlots = new Set();
     targetSlots = targetSlots.filter(slot => {
-      if (!slot || slot.label === breakSlot) return false;
+      if (!slot || breakSlots.includes(slot.label)) return false;
       if (seenSlots.has(slot.label)) return false;
       seenSlots.add(slot.label);
       return true;
@@ -1733,7 +1785,7 @@
 
     targetSlots.forEach(slot => {
       const existing = existingData[slot.label] || {};
-      const isBreakTime = (slot.label === breakSlot);
+      const isBreakTime = breakSlots.includes(slot.label);
       const currentOutput = isBreakTime
         ? 0
         : (existing.output !== undefined ? existing.output : '');
@@ -1845,12 +1897,12 @@
     const selectedLine = document.getElementById('line').value.toUpperCase();
     const cleanLine = selectedLine.replace('LINE', '').trim();
 
-    const breakSlot = "12.30-13.30";
+    const breakSlots = getBreakSlotsForHours_(currentHours1);
 
     Object.entries(existingData || {}).forEach(([label, existing]) => {
       const slot = TIME_SLOTS_DEF.find(s => s.label === label);
       if (!slot || !existing) return;
-      if (label === breakSlot) return;
+      if (breakSlots.includes(label)) return;
 
       if (existing.output !== undefined && existing.output !== "") {
         completedLabels.add(label);
@@ -1867,7 +1919,7 @@
 
       const slot = TIME_SLOTS_DEF.find(s => s.label === label);
       if (!slot) return;
-      if (label === breakSlot) return;
+      if (breakSlots.includes(label)) return;
 
       completedLabels.add(label);
     });
@@ -1877,7 +1929,8 @@
 
 
   function getActualNormalTotal_(existingData) {
-    const normalOrder = TIME_SLOTS_DEF.filter(s => s.endMin <= 1050);
+    const NORMAL_END_MIN = SCHEDULE_IS_V2 ? 1020 : 1050;
+    const normalOrder = TIME_SLOTS_DEF.filter(s => s.endMin <= NORMAL_END_MIN);
     let total = 0;
     normalOrder.forEach(slot => {
       const existing = existingData && existingData[slot.label];
@@ -1891,7 +1944,7 @@
       const input = row.querySelector('.input-val');
       if (!label || !input) return;
       const slot = TIME_SLOTS_DEF.find(s => s.label === label);
-      if (!slot || slot.endMin > 1050) return;
+      if (!slot || slot.endMin > NORMAL_END_MIN) return;
       if (input.value !== "") {
         const old = existingData && existingData[label];
         const oldQty = old && old.output !== undefined && old.output !== "" ? Number(old.output) || 0 : null;
@@ -1933,23 +1986,18 @@
 
 
   function getBreakSlotForLine_(lineValue) {
-    return '12.30-13.30';
+    return getBreakSlotsForHours_(currentHours1)[0];
   }
 
   function getWorkingSlotsForCurrentLine_() {
     const lineVal = document.getElementById('line').value;
-    const breakSlot = getBreakSlotForLine_(lineVal);
     const totalHours = Math.floor(Number(currentHours1) || 0);
 
     if (totalHours < 1 || totalHours > MAX_WORKING_HOURS) {
       return [];
     }
 
-    const workingSlots = TIME_SLOTS_DEF
-      .filter(slot => slot.label !== breakSlot)
-      .slice(0, totalHours);
-
-    return workingSlots;
+    return getWorkingSlotsForLineValue_(lineVal, totalHours);
   }
 
   function updateLoadInFinalField_(visibleSlots) {
@@ -2094,8 +2142,16 @@
   }
 
   function getWorkingSlotsForLineValue_(lineValue, totalHours) {
-    const breakSlot = getBreakSlotForLine_(lineValue);
     const hours = Math.max(0, Math.floor(Number(totalHours) || 0));
+
+    if (SCHEDULE_IS_V2) {
+      const labels = V2_WORKING_SLOTS[hours] || [];
+      return labels
+        .map(label => TIME_SLOTS_DEF.find(slot => slot.label === label))
+        .filter(Boolean);
+    }
+
+    const breakSlot = '12.30-13.30';
 
     return TIME_SLOTS_DEF
       .filter(slot => slot.label !== breakSlot)
