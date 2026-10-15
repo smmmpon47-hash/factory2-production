@@ -367,7 +367,7 @@
   let lotLookupTimer = null;
   let lotLookupController = null;
   const lotLookupCache = new Map();
-  const LOT_CACHE_PREFIX = "factory2LotLookupV11:";
+  const LOT_CACHE_PREFIX = "factory2LotLookupV12:";
 
   function getCachedLot_(lot) {
     if (lotLookupCache.has(lot)) return lotLookupCache.get(lot);
@@ -503,10 +503,12 @@
 
     if (data && Array.isArray(data.productTypes)) setProductTypes_(data.productTypes);
 
+    select.disabled = false;
+
     if (data && data.typeLocked && data.productType) {
-      select.value = data.productType;
-      select.disabled = true;
-      setTypeHint_("🔒 ประเภทงานตาม Master_Work", "lock");
+      // Master_Work มีประเภทแล้ว → เลือกให้เป็นค่าเริ่มต้น แต่เปลี่ยนเองได้
+      select.value = keepSelection && previous ? previous : data.productType;
+      setTypeHint_(`ค่าเริ่มต้นจาก Master_Work: ${data.productType} • เปลี่ยนได้ถ้างานวันนี้ไม่ตรง`, "lock");
     } else {
       select.disabled = false;
       // ค้น LOT เดิมซ้ำ (เช่น ตอน blur) ไม่ล้างประเภทที่ผู้ใช้เลือกไว้
