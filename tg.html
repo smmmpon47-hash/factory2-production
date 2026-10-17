@@ -304,6 +304,14 @@
               <span>Qty</span>
               <strong id="lotQty">-</strong>
             </div>
+            <div class="lot-info-row" id="lotDueRow" style="display:none">
+              <span>กำหนดส่ง</span>
+              <strong id="lotDue">-</strong>
+            </div>
+            <div class="lot-info-row" id="lotProducedRow" style="display:none">
+              <span>ผลิตสะสมแล้ว</span>
+              <strong id="lotProduced">-</strong>
+            </div>
             <div class="lot-info-row" id="lotRemainRow" style="display:none">
               <span>ออเดอร์คงเหลือ</span>
               <strong id="lotRemain">-</strong>
@@ -367,7 +375,7 @@
   let lotLookupTimer = null;
   let lotLookupController = null;
   const lotLookupCache = new Map();
-  const LOT_CACHE_PREFIX = "factory2LotLookupV12:";
+  const LOT_CACHE_PREFIX = "factory2LotLookupV13:";
 
   function getCachedLot_(lot) {
     if (lotLookupCache.has(lot)) return lotLookupCache.get(lot);
@@ -557,6 +565,19 @@
       `${formatNumber(data.qty)} ตัว`;
 
     document.getElementById("lotInfo").classList.add("show");
+
+    // V13: กำหนดส่ง + ผลิตสะสม (ทุกไลน์ในโรง 2)
+    const dueRow = document.getElementById("lotDueRow");
+    dueRow.style.display = data.dueDate ? "flex" : "none";
+    document.getElementById("lotDue").textContent = data.dueDate || "-";
+
+    const producedRow = document.getElementById("lotProducedRow");
+    if (data.order && Number.isFinite(Number(data.order.produced))) {
+      producedRow.style.display = "flex";
+      document.getElementById("lotProduced").textContent = `${formatNumber(data.order.produced)} ตัว`;
+    } else {
+      producedRow.style.display = "none";
+    }
 
     // V11: ยอดคงเหลือของออเดอร์ (ยอดสะสมทุกไลน์ในโรง 2)
     const order = data.order;

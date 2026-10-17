@@ -26,6 +26,11 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
 .lineCard{min-height:224px}
 .kpi{border-radius:18px;padding:14px 16px}
 .hide{display:none!important}
+.lineSelBtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1.5px solid #E2E8F0;background:#fff;border-radius:14px;padding:8px 10px;min-width:0;transition:all .15s}
+.lineSelBtn:hover{border-color:#A5B4FC}
+.lineSelBtn.active{border-color:#4F46E5;background:#EEF2FF;box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+.lineDot{width:8px;height:8px;border-radius:999px;display:inline-block;flex:0 0 auto}
+.lotModalBack{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:90;display:flex;align-items:flex-start;justify-content:center;padding:6vh 14px 14px;overflow:auto}
 .progressTrack{background:#F1F5F9;border-radius:999px;height:8px;overflow:hidden}
 .progressFill{height:8px;border-radius:999px;transition:width .25s ease}
 .metricLabel{font-size:10px;font-weight:600;color:#94A3B8}
@@ -126,7 +131,7 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
       <div class="h-64 relative"><canvas id="factoryChart"></canvas></div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
       <div class="card soft kpi flex items-center gap-3">
         <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">✅</div>
         <div>
@@ -140,6 +145,15 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
         <div>
           <p class="text-[11px] text-slate-400 font-semibold">เป้าหมายรวม</p>
           <p class="text-xl font-extrabold text-slate-800"><span id="kpiTarget">0</span> <span class="text-xs font-semibold text-slate-400">ชิ้น</span></p>
+        </div>
+      </div>
+
+      <div class="card soft kpi flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg">⏱️</div>
+        <div>
+          <p class="text-[11px] text-slate-400 font-semibold">ชม.ทำงานเฉลี่ย</p>
+          <p class="text-xl font-extrabold text-slate-800"><span id="kpiAvgHours">-</span> <span class="text-xs font-semibold text-slate-400">ชม.</span></p>
+          <p id="kpiAvgHoursNote" class="text-[10px] text-slate-400">-</p>
         </div>
       </div>
 
@@ -163,6 +177,10 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
     <div class="flex items-baseline justify-between gap-2 mb-3">
       <h2 class="font-bold text-slate-800">รายละเอียดแยกตามไลน์ และ LOT</h2>
       <p class="text-[11px] text-slate-400">เทียบเป้าต่อวัน กับ เป้า ณ เวลานี้</p>
+    </div>
+    <div class="mb-3">
+      <p class="text-[11px] text-slate-400 font-semibold mb-1.5">เลือกไลน์เพื่อดูรายละเอียด</p>
+      <div id="lineSelector" class="grid grid-cols-3 sm:grid-cols-6 gap-2"></div>
     </div>
     <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3"></div>
   </section>
@@ -309,6 +327,24 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
   </section>
 
   <p id="lastRefresh" class="text-center text-[10px] text-slate-400 mt-5">-</p>
+
+  <!-- ======================= LOT SEARCH (V13) ======================= -->
+  <div id="lotModal" class="lotModalBack hide" onclick="if(event.target===this)closeLotSearch()">
+    <div class="card soft w-full max-w-[560px] p-5">
+      <div class="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h3 class="font-bold text-slate-800">ค้นหาและติดตามสถานะ LOT</h3>
+          <p class="text-[11px] text-slate-400">ยอดสะสมรวมทุกไลน์ในโรงงาน 2</p>
+        </div>
+        <button onclick="closeLotSearch()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-lg">&times;</button>
+      </div>
+      <form id="lotSearchForm" class="flex gap-2">
+        <input id="lotSearchInput" type="text" autocomplete="off" placeholder="พิมพ์เลข LOT" class="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold uppercase focus:outline-none focus:border-indigo-400">
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 text-sm font-bold">ค้นหา</button>
+      </form>
+      <div id="lotSearchResult" class="mt-4 text-sm text-slate-400">พิมพ์รหัส LOT ด้านบนเพื่อเริ่มค้นหา</div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -450,23 +486,76 @@ function updateHeaderClock(){
   if(dayEl) dayEl.innerText=now.toLocaleDateString("th-TH",{weekday:"long"});
   if(clockEl) clockEl.innerText=now.toLocaleTimeString("th-TH",{hour12:false});
 }
+// ================= V13: ค้นหา LOT แบบเต็ม =================
+var lotSearchSeq=0;
 function openLotSearch(){
-  var query=prompt("ค้นหา LOT โรงงาน 2");
-  if(query===null)return;
-  query=String(query||"").trim().toUpperCase();
-  if(!query)return;
-
-  var found=(dashboardData.lines||[]).find(function(item){
-    return [item.active_lot,item.lot_number,item.lot_number2,item.lot_number3]
-      .some(function(v){return String(v||"").trim().toUpperCase()===query});
-  });
-
-  if(!found){
-    alert("ไม่พบ LOT "+query+" ในวันที่ที่กำลังดู");
-    return;
-  }
-  openLine(String(found.line||""));
+  el("lotModal").classList.remove("hide");
+  setTimeout(function(){el("lotSearchInput").focus()},40);
 }
+function closeLotSearch(){
+  el("lotModal").classList.add("hide");
+}
+async function runLotSearch(query){
+  var lot=String(query||"").trim().toUpperCase().replace(/\s+/g,"");
+  var box=el("lotSearchResult");
+  if(!lot){box.innerHTML='<p class="text-slate-400">พิมพ์รหัส LOT ด้านบนเพื่อเริ่มค้นหา</p>';return}
+  var seq=++lotSearchSeq;
+  box.innerHTML='<p class="text-slate-400">กำลังค้นหา LOT '+esc(lot)+'...</p>';
+  try{
+    var res=await fetch(GAS_API_URL+"?action=searchLot&lot="+encodeURIComponent(lot)+"&_="+Date.now(),{cache:"no-store"});
+    var d=await res.json();
+    if(seq!==lotSearchSeq)return;
+    if(!d||!d.found){box.innerHTML='<p class="text-rose-600 font-semibold">ไม่พบ LOT '+esc(lot)+' ใน Master_Work</p>';return}
+    box.innerHTML=renderLotSearchResult_(d);
+  }catch(err){
+    if(seq!==lotSearchSeq)return;
+    box.innerHTML='<p class="text-rose-600 font-semibold">ค้นหาไม่สำเร็จ กรุณาลองใหม่</p>';
+  }
+}
+function lotLinesToday_(lot){
+  return (dashboardData.lines||[]).filter(function(item){
+    return [item.active_lot,item.lot_number,item.lot_number2,item.lot_number3]
+      .some(function(v){return String(v||"").trim().toUpperCase()===lot});
+  }).map(function(item){return String(item.line)});
+}
+function renderLotSearchResult_(d){
+  var qty=num(d.qty),produced=num(d.produced);
+  var p=qty?Math.min(100,pct(produced,qty)):0;
+  var status=d.complete?'<span class="badge bg-emerald-50 text-emerald-600">ครบออเดอร์</span>'
+    :(produced>0?'<span class="badge bg-indigo-50 text-indigo-600">กำลังผลิต</span>':'<span class="badge bg-slate-100 text-slate-500">ยังไม่เริ่ม</span>');
+  var cell=function(label,value,cls){return '<div class="bg-slate-50 border border-slate-100 rounded-xl p-3"><p class="metricLabel">'+label+'</p><p class="text-base font-extrabold mt-0.5 '+(cls||'text-slate-800')+'">'+value+'</p></div>'};
+  var html='';
+  html+='<div class="flex flex-wrap items-center gap-2 mb-3"><span class="text-lg font-extrabold text-indigo-600">LOT '+esc(d.lot)+'</span>'+status+'</div>';
+  html+='<p class="text-xs text-slate-500 mb-3">'+esc([d.smpl,d.model].filter(Boolean).join(" / ")||"-")+(d.productType?' • '+esc(d.productType):'')+'</p>';
+  html+='<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">';
+  html+=cell("จำนวนตาม PO",qty?fmt(qty):"-");
+  html+=cell("ผลิตสะสมแล้ว",fmt(produced),"text-emerald-700");
+  html+=cell("คงเหลือ",d.remaining===null||d.remaining===undefined?"-":fmt(d.remaining),d.complete?"text-emerald-700":"text-amber-600");
+  html+=cell("กำหนดส่งมอบ",d.dueDate?esc(d.dueDate):"-");
+  html+='</div>';
+  if(qty){
+    html+='<div class="flex items-center gap-2 mt-3"><div class="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden"><div class="bg-indigo-500 h-2 rounded-full" style="width:'+p+'%"></div></div><span class="text-xs font-extrabold text-slate-700">'+p.toFixed(1)+'%</span></div>';
+  }
+  var today=lotLinesToday_(d.lot);
+  if(today.length&&!dashboardData.isRange){
+    html+='<div class="flex flex-wrap gap-2 mt-3">'+today.map(function(code){
+      return '<button onclick="closeLotSearch();openLine(\''+esc(code)+'\')" class="text-xs font-bold bg-slate-900 text-white rounded-xl px-3 py-1.5">เปิด LINE '+esc(code)+'</button>';
+    }).join('')+'</div>';
+  }
+  var hist=Array.isArray(d.history)?d.history:[];
+  html+='<p class="text-xs font-bold text-slate-600 mt-4 mb-1.5">ประวัติการผลิต'+(d.hours?' • '+fmt(d.hours)+' รอบ':'')+'</p>';
+  if(!hist.length){
+    html+='<p class="text-xs text-slate-400">ยังไม่มียอดผลิตของ LOT นี้</p>';
+  }else{
+    html+='<div class="max-h-56 overflow-auto border border-slate-100 rounded-xl"><table class="w-full text-xs"><thead class="bg-slate-50 text-slate-400"><tr><th class="text-left font-semibold px-3 py-1.5">วันที่</th><th class="text-left font-semibold">LINE</th><th class="text-right font-semibold">รอบ</th><th class="text-right font-semibold px-3">ผลิต</th></tr></thead><tbody>';
+    html+=hist.map(function(h){
+      return '<tr class="border-t border-slate-100"><td class="px-3 py-1.5 font-semibold text-slate-700">'+esc(h.date)+'</td><td class="text-slate-600">'+esc(h.line)+'</td><td class="text-right text-slate-500">'+fmt(h.slots)+'</td><td class="text-right px-3 font-extrabold text-slate-700">'+fmt(h.output)+'</td></tr>';
+    }).join('');
+    html+='</tbody></table></div>';
+  }
+  return html;
+}
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeLotSearch()});
 function num(v){var n=Number(v);return Number.isFinite(n)?n:0}
 function fmt(v){return num(v).toLocaleString()}
 function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]})}
@@ -491,6 +580,7 @@ function dashboardSignature_(data){
           active_smpl:x.active_smpl||"",
           active_po_target:num(x.active_po_target),
           active_cumulative_actual:num(x.active_cumulative_actual),
+          active_due_date:x.active_due_date||"",
 
           lot_number:x.lot_number||"",
           model1:x.model1||"",
@@ -716,6 +806,8 @@ function mergeRange(payloads,from,to){
       a.target+=num(item.target);
       a.actual+=num(item.actual);
       a.total_working_hours+=num(item.total_working_hours);
+      if(num(item.target)>0)a.plan_days=num(a.plan_days)+1;
+      if(item.active_due_date)a.active_due_date=item.active_due_date;
       a.target1+=num(item.target1); a.target2+=num(item.target2); a.target3+=num(item.target3);
       TIME_SLOTS.forEach(function(s){
         a.hourly_data[s]+=num((item.hourly_data||{})[s]);
@@ -818,7 +910,19 @@ function renderAll(){
   el("kpiPct").innerText=progress.toFixed(1)+"%";
   el("kpiBar").style.width=Math.max(0,Math.min(100,progress))+"%";
 
+  // V13: ชม.ทำงานเฉลี่ย — เฉพาะไลน์ที่ตั้งเป้าแล้ว
+  var planned=lines.filter(function(d){return num(d.target)>0});
+  var planDays=dashboardData.isRange
+    ? lines.reduce(function(sum,d){return sum+num(d.plan_days)},0)
+    : planned.length;
+  var hoursSum=planned.reduce(function(sum,d){return sum+num(d.total_working_hours)},0);
+  el("kpiAvgHours").innerText=planDays?(hoursSum/planDays).toFixed(1):"-";
+  el("kpiAvgHoursNote").innerText=planDays
+    ? (dashboardData.isRange ? ("เฉลี่ยจาก "+planDays+" ไลน์-วัน") : ("จาก "+planned.length+" ไลน์ที่ตั้งเป้า"))
+    : "ยังไม่มีไลน์ตั้งเป้า";
+
   renderDailyChart(lines,true);
+  renderLineSelector(lines);
   renderCards(lines);
   renderChips();
 
@@ -983,6 +1087,24 @@ function renderCards(lines){
   });
 }
 
+// V13: แถบเลือกไลน์ — จุดสีตามสถานะ + % คืบหน้า จิ้มแล้วเปิดรายละเอียด
+function renderLineSelector(lines){
+  var wrap=el("lineSelector");
+  if(!wrap)return;
+  var dateStr=dashboardData.date||currentRange.from;
+  var dotColor={ok:"#10B981",warn:"#F59E0B",bad:"#F43F5E",idle:"#CBD5E1"};
+  wrap.innerHTML=LINE_CODES.map(function(code){
+    var item=(lines||[]).find(function(x){return String(x.line)===code})||{line:code};
+    var st=dashboardData.isRange?{key:num(item.target)?"ok":"idle"}:lineStatus(item,dateStr);
+    var p=num(item.target)?Math.round(pct(num(item.actual),num(item.target))):0;
+    var selected=String(selectedLine)===code;
+    return '<button type="button" class="lineSelBtn'+(selected?' active':'')+'" onclick="openLine(\''+code+'\')" title="'+esc(st.label||"")+'">'+
+      '<span class="flex items-center gap-1.5 text-xs font-extrabold text-slate-800"><span class="lineDot" style="background:'+(dotColor[st.key]||dotColor.idle)+'"></span>LINE '+code+'</span>'+
+      '<span class="text-[10px] font-semibold text-slate-400">'+(num(item.target)?(p+'% • '+fmt(item.actual)+'/'+fmt(item.target)):'ยังไม่ตั้งเป้า')+'</span>'+
+      '</button>';
+  }).join("");
+}
+
 function renderChips(){
   var c=el("lineChips");
   c.innerHTML="";
@@ -1000,6 +1122,7 @@ function openLine(code){
   var item=(dashboardData.lines||[]).find(function(x){return String(x.line)===selectedLine});
   if(!item)return;
   el("lineDetail").classList.remove("hide");
+  renderLineSelector(dashboardData.lines||[]);
   renderCards(dashboardData.lines||[]);
   renderChips();
   renderDetail(item);
@@ -1118,9 +1241,10 @@ function renderPulse(item,m){
   el("pulseOrder").innerText=orderQty?(fmt(orderActual)+" / "+fmt(orderQty)):"-";
   el("pulseOrderMeta").innerText=orderQty?(orderPct.toFixed(1)+"% • เหลือ "+fmt(remain)+" ชิ้น"):"ไม่มี Qty ใน Master";
   el("pulseEta").innerText=orderQty&&remain>0?("อีก "+remainHours.toFixed(1)+" ชม.ผลิต"):(orderQty?"ครบแล้ว":"-");
+  var due=String(item.active_due_date||"").trim();
   el("pulseEtaMeta").innerText=orderQty
-    ? ("อิง Pace "+fmt(pace)+" ชิ้น/ชม.")
-    : "-";
+    ? ("อิง Pace "+fmt(pace)+" ชิ้น/ชม."+(due?" • ส่งมอบ "+due:""))
+    : (due?"ส่งมอบ "+due:"-");
 }
 
 function renderHourlyChart(item){
@@ -1291,13 +1415,45 @@ el("datePickerTo").addEventListener("change",function(){
 el("closeDetailBtn").addEventListener("click",function(){
   selectedLine="";
   el("lineDetail").classList.add("hide");
+  renderLineSelector(dashboardData.lines||[]);
   renderCards(dashboardData.lines||[]);
 });
+el("lotSearchForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  runLotSearch(el("lotSearchInput").value);
+});
 bootDashboard_();
-setInterval(function(){
-  if(document.visibilityState!=="visible") return;
-  loadDashboard(false);
-},90000);
+
+// ================= V13: Refresh แบบเบา =================
+// เช็กเลขเวอร์ชันข้อมูลทุก 30 วินาที (เล็กมาก) ถ้าเปลี่ยน = มีคนบันทึกใหม่ → โหลดเต็ม
+// โหลดเต็มสำรองทุก 5 นาที เผื่อมีการแก้ใน Sheet ตรง ๆ
+var lastDataVersion=null;
+var lastFullRefreshAt=Date.now();
+async function checkDashboardVersion_(){
+  try{
+    var res=await fetch(GAS_API_URL+"?action=getDashboardVersion&_="+Date.now(),{cache:"no-store"});
+    var d=await res.json();
+    return d&&d.version!==undefined?String(d.version):null;
+  }catch(err){return null}
+}
+async function lightRefreshTick_(){
+  if(document.visibilityState!=="visible")return;
+  if(dashboardFetchInProgress)return;
+  var viewingToday=!currentRange.to&&currentRange.from===todayLocal();
+  var dueFull=Date.now()-lastFullRefreshAt>=5*60*1000;
+  var v=viewingToday?await checkDashboardVersion_():null;
+  var changed=v!==null&&lastDataVersion!==null&&v!==lastDataVersion;
+  if(v!==null)lastDataVersion=v;
+  if(changed||dueFull||(!viewingToday&&dueFull)){
+    lastFullRefreshAt=Date.now();
+    await loadDashboard(false);
+  }
+}
+checkDashboardVersion_().then(function(v){if(v!==null)lastDataVersion=v});
+setInterval(lightRefreshTick_,30000);
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="visible")lightRefreshTick_();
+});
 </script>
 </body>
 </html>
