@@ -201,6 +201,10 @@
     }
     .type-hint.lock{color:#0f766e}
     .type-hint.warn{color:#b45309}
+    .manual-rate{margin-top:10px;padding:12px;border:1.5px dashed #f59e0b;border-radius:12px;background:#fffbeb}
+    .manual-rate label{color:#92400e}
+    .manual-rate input{font-size:20px;font-weight:700;text-align:center}
+    .manual-rate input.invalid{border-color:#dc2626;background:#fef2f2}
     .btn-submit{
       width:100%;
       min-height:56px;
@@ -325,6 +329,11 @@
             <option value="">-- เลือกประเภทงาน --</option>
           </select>
           <div id="typeHint" class="type-hint">กรอก LOT แล้วระบบจะดึงประเภทงานจาก Master ให้</div>
+          <div id="manualRateGroup" class="manual-rate" style="display:none">
+            <label for="manualRate">Rate ของรุ่นนี้ (ตัว/ชม.)</label>
+            <input type="number" id="manualRate" inputmode="numeric" min="20" max="150" step="1" placeholder="เช่น 45">
+            <div id="manualRateHint" class="type-hint warn"></div>
+          </div>
         </div>
       </div>
 
@@ -366,16 +375,19 @@
 
   // V9: Rate ตามประเภทงาน — รายการจริงโหลดจาก Apps Script (ชีท Product_Types)
   let productTypes = [
-    { name: "เสื้อปกติ", rate: 80 },
-    { name: "สเวตเตอร์", rate: 60 }
+    { name: "เสื้อปกติ", rate: 80, manual: false },
+    { name: "สเวตเตอร์", rate: 60, manual: true }
   ];
+  // V14: ประเภทที่ manual = กรอก Rate เองตามรุ่น (จำต่อ LOT)
+  let RATE_MIN = 20, RATE_MAX = 150;
+  let manualRateFor = "";
 
   let userDisplayName = "Unknown";
   let lastLotLookup = null;
   let lotLookupTimer = null;
   let lotLookupController = null;
   const lotLookupCache = new Map();
-  const LOT_CACHE_PREFIX = "factory2LotLookupV13:";
+  const LOT_CACHE_PREFIX = "factory2LotLookupV14:";
 
   function getCachedLot_(lot) {
     if (lotLookupCache.has(lot)) return lotLookupCache.get(lot);
@@ -456,7 +468,7 @@
     select.innerHTML =
       `<option value="">-- เลือกประเภทงาน --</option>` +
       productTypes
-        .map(t => `<option value="${t.name}">${t.name} (${formatNumber(t.rate)} ชิ้น/ชม.)</option>`)
+        .map(t => `<option value="${t.name}">${t.name} (${t.manual ? "กรอก Rate เอง" : formatNumber(t.rate) + " ชิ้น/ชม."})</option>`)
         .join("");
 
     if (productTypes.some(t => t.name === current)) select.value = current;
@@ -465,7 +477,7 @@
   function setProductTypes_(list) {
     if (!Array.isArray(list) || !list.length) return;
     productTypes = list
-      .map(t => ({ name: String(t.name || "").trim(), rate: Number(t.rate) || 0 }))
+      .map(t => ({ name: String(t.name || "").trim(), rate: Number(t.rate) || 0, manual: !!t.manual }))
       .filter(t => t.name && t.rate > 0);
     renderTypeOptions_();
     updateTarget();
@@ -481,12 +493,56 @@
     }
   }
 
+  function readManualRate_() {
+    const raw = document.getElementById("manualRate").value.trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < RATE_MIN || n > RATE_MAX) return null;
+    return n;
+  }
+
+  // V14: แสดง/ซ่อนช่องกรอก Rate ตามประเภท + เติมค่าเริ่มต้น (Rate ล่าสุดของ LOT → ค่าของประเภท)
+  function syncManualRate_() {
+    const type = getSelectedType_();
+    const group = document.getElementById("manualRateGroup");
+    const input = document.getElementById("manualRate");
+    const hint = document.getElementById("manualRateHint");
+
+    if (!type || !type.manual) {
+      group.style.display = "none";
+      return;
+    }
+
+    group.style.display = "block";
+    const lotKey = lastLotLookup && lastLotLookup.lot ? lastLotLookup.lot : "-";
+    const remembered = lastLotLookup && lastLotLookup.rateOverride ? Number(lastLotLookup.rateOverride) : 0;
+
+    if (manualRateFor !== lotKey || !input.value.trim()) {
+      input.value = remembered || type.rate || "";
+      manualRateFor = lotKey;
+    }
+
+    hint.textContent = remembered
+      ? `Rate ล่าสุดของ LOT นี้ ${formatNumber(remembered)} ตัว/ชม. • แก้ได้ถ้ารุ่นนี้ไม่ตรง`
+      : `ค่าเริ่มต้น ${formatNumber(type.rate)} ตัว/ชม. • แก้ให้ตรงรุ่น (${RATE_MIN}–${RATE_MAX})`;
+  }
+
+  function getEffectiveRate_() {
+    const type = getSelectedType_();
+    if (!type) return null;
+    return type.manual ? readManualRate_() : type.rate;
+  }
+
   function updateTarget() {
     const hours = Number(document.getElementById("selectedHours").value) || 8;
     const type = getSelectedType_();
+    syncManualRate_();
+    const rate = getEffectiveRate_();
+    const input = document.getElementById("manualRate");
+    input.classList.toggle("invalid", !!(type && type.manual && rate === null));
 
     document.getElementById("rateBadge").textContent =
-      `Rate: ${type ? formatNumber(type.rate) : "-"} ชิ้น/ชม.`;
+      `Rate: ${rate ? formatNumber(rate) : "-"} ชิ้น/ชม.`;
 
     if (!type) {
       document.getElementById("targetDisplay").textContent = "-";
@@ -494,9 +550,15 @@
       return;
     }
 
-    document.getElementById("targetDisplay").textContent = formatNumber(hours * type.rate);
+    if (!rate) {
+      document.getElementById("targetDisplay").textContent = "-";
+      document.getElementById("targetNote").textContent = `กรอก Rate ${type.name} เป็นจำนวนเต็ม ${RATE_MIN}–${RATE_MAX}`;
+      return;
+    }
+
+    document.getElementById("targetDisplay").textContent = formatNumber(hours * rate);
     document.getElementById("targetNote").textContent =
-      `${type.name} ${formatNumber(type.rate)} ตัว/ชม. × ${hours} ชม.`;
+      `${type.name} ${formatNumber(rate)} ตัว/ชม. × ${hours} ชม.`;
   }
 
   function setTypeHint_(message, cls) {
@@ -510,6 +572,9 @@
     const previous = select.value;
 
     if (data && Array.isArray(data.productTypes)) setProductTypes_(data.productTypes);
+    if (data && data.manualRateMin) RATE_MIN = Number(data.manualRateMin) || RATE_MIN;
+    if (data && data.manualRateMax) RATE_MAX = Number(data.manualRateMax) || RATE_MAX;
+    if (!keepSelection) manualRateFor = "";
 
     select.disabled = false;
 
@@ -528,6 +593,7 @@
   }
 
   document.getElementById("productType").addEventListener("change", updateTarget);
+  document.getElementById("manualRate").addEventListener("input", updateTarget);
 
   document.querySelectorAll(".btn-hour").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -739,6 +805,14 @@
       return;
     }
 
+    const selectedType = getSelectedType_();
+    const productRate = selectedType && selectedType.manual ? readManualRate_() : null;
+    if (selectedType && selectedType.manual && productRate === null) {
+      alert(`กรุณากรอก Rate ${productType} เป็นจำนวนเต็ม ${RATE_MIN}–${RATE_MAX} ตัว/ชม.`);
+      document.getElementById("manualRate").focus();
+      return;
+    }
+
     if (!SCRIPT_URL || SCRIPT_URL.includes("PASTE_")) {
       alert("ยังไม่ได้ใส่ Apps Script /exec URL");
       return;
@@ -753,6 +827,7 @@
       manpower,
       lotNumber: lot,
       productType,
+      productRate,
       workingHours,
       updatedBy: userDisplayName
     };

@@ -773,6 +773,11 @@
     }
     .modal-type-hint.lock{color:#0f766e}
     .modal-type-hint.warn{color:#b45309}
+    .modal-manual-rate{margin-top:8px;padding:10px;border:1.5px dashed #f59e0b;border-radius:12px;background:#fffbeb}
+    .modal-manual-rate label{color:#92400e}
+    .modal-manual-rate input{font-size:1.1rem;font-weight:800;text-align:center}
+    .modal-manual-rate input:disabled{background:#f1f5f9;color:#0f766e;-webkit-text-fill-color:#0f766e;opacity:1}
+    .modal-manual-rate input.invalid{border-color:#dc2626;background:#fef2f2}
 
     .slot-input{
       min-width: 0;
@@ -1099,6 +1104,11 @@
         <option value="">-- เลือกประเภทงาน --</option>
       </select>
       <div id="modalTypeHint" class="modal-type-hint">กรอก LOT แล้วระบบจะดึงประเภทงานจาก Master ให้</div>
+      <div id="modalManualRateGroup" class="modal-manual-rate" style="display:none">
+        <label for="modalManualRate">Rate ของรุ่นนี้ (ตัว/ชม.)</label>
+        <input type="number" id="modalManualRate" inputmode="numeric" min="20" max="150" step="1" placeholder="เช่น 45" oninput="updateSwitchTargetPreview_()">
+        <div id="modalManualRateHint" class="modal-type-hint warn"></div>
+      </div>
     </div>
     <div id="switchTargetPreview" style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:12px;padding:10px 12px;margin-bottom:12px;color:#0f766e;font-size:.82rem;font-weight:700;">
       🎯 เป้ารายชั่วโมงเปลี่ยนตามประเภทงานของ LOT ปลายทาง
@@ -1160,7 +1170,7 @@
   function setProductTypesList_(list) {
     if (!Array.isArray(list) || !list.length) return;
     const cleaned = list
-      .map(t => ({ name: String(t && t.name || '').trim(), rate: Number(t && t.rate) || 0 }))
+      .map(t => ({ name: String(t && t.name || '').trim(), rate: Number(t && t.rate) || 0, manual: !!(t && t.manual) }))
       .filter(t => t.name && t.rate > 0);
     if (cleaned.length) productTypesList = cleaned;
   }
@@ -2394,7 +2404,7 @@
     select.innerHTML =
       '<option value="">-- เลือกประเภทงาน --</option>' +
       productTypesList
-        .map(t => `<option value="${escapeHtml_(t.name)}">${escapeHtml_(t.name)} (${t.rate.toLocaleString()} ชิ้น/ชม.)</option>`)
+        .map(t => `<option value="${escapeHtml_(t.name)}">${escapeHtml_(t.name)} (${t.manual ? 'กรอก Rate เอง' : t.rate.toLocaleString() + ' ชิ้น/ชม.'})</option>`)
         .join('');
   }
 
@@ -2431,6 +2441,9 @@
       setProductTypesList_(info.productTypes);
       renderModalTypeOptions_();
     }
+    if (info && info.manualRateMin) MANUAL_RATE_MIN = Number(info.manualRateMin) || MANUAL_RATE_MIN;
+    if (info && info.manualRateMax) MANUAL_RATE_MAX = Number(info.manualRateMax) || MANUAL_RATE_MAX;
+    modalManualRateFor = '';
 
     const todayType = currentLotTypes[lot];
 
@@ -2455,9 +2468,77 @@
     updateSwitchTargetPreview_();
   }
 
+  // V14: ประเภท Manual_Rate (เช่น สเวตเตอร์) → กรอก Rate เองต่อ LOT
+  let MANUAL_RATE_MIN = 20, MANUAL_RATE_MAX = 150;
+  let modalManualRateFor = '';
+
+  function readModalManualRate_() {
+    const input = document.getElementById('modalManualRate');
+    const raw = input ? input.value.trim() : '';
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= MANUAL_RATE_MIN && n <= MANUAL_RATE_MAX ? n : null;
+  }
+
+  function syncModalManualRate_() {
+    const group = document.getElementById('modalManualRateGroup');
+    const input = document.getElementById('modalManualRate');
+    const hint = document.getElementById('modalManualRateHint');
+    const select = document.getElementById('modalProductType');
+    if (!group || !input || !select) return;
+
+    const base = findProductType_(select.value);
+    const lot = normalizeLot_(document.getElementById('modalLotNo')?.value);
+    const todayType = lot ? currentLotTypes[lot] : null;
+
+    if (!base || !base.manual) {
+      group.style.display = 'none';
+      modalManualRateFor = '';
+      return;
+    }
+
+    group.style.display = 'block';
+    const key = lot + '|' + base.name;
+
+    if (todayType && todayType.type === base.name) {
+      // LOT นี้ทำไปแล้ววันนี้ → Rate เดิมของวันนี้ (ล็อก)
+      input.value = Number(todayType.rate) || base.rate;
+      input.disabled = true;
+      hint.textContent = '🔒 LOT นี้ทำไปแล้ววันนี้ ใช้ Rate เดิม';
+      modalManualRateFor = key;
+      return;
+    }
+
+    input.disabled = false;
+    const info = pendingSwitchLotInfo && normalizeLot_(pendingSwitchLotInfo.lot) === lot ? pendingSwitchLotInfo : null;
+    const remembered = info && info.rateOverride ? Number(info.rateOverride) : 0;
+
+    if (modalManualRateFor !== key) {
+      input.value = remembered || base.rate || '';
+      modalManualRateFor = key;
+    }
+
+    hint.textContent = remembered
+      ? `Rate ล่าสุดของ LOT นี้ ${remembered} ตัว/ชม. • แก้ได้ถ้ารุ่นนี้ไม่ตรง`
+      : `ค่าเริ่มต้น ${base.rate} ตัว/ชม. • แก้ให้ตรงรุ่น (${MANUAL_RATE_MIN}–${MANUAL_RATE_MAX})`;
+  }
+
+  /**
+   * ประเภทที่เลือก + Rate ที่ใช้จริง (ประเภทกรอกเอง → Rate จากช่องกรอก)
+   * คืน null ถ้ายังไม่เลือก หรือกรอก Rate ไม่ถูกต้อง
+   */
   function getModalSelectedType_() {
     const select = document.getElementById('modalProductType');
-    return select ? findProductType_(select.value) : null;
+    const base = select ? findProductType_(select.value) : null;
+    if (!base) return null;
+    if (!base.manual) return base;
+
+    const input = document.getElementById('modalManualRate');
+    if (input && input.disabled) return { name: base.name, rate: Number(input.value) || base.rate, manual: true };
+
+    const rate = readModalManualRate_();
+    if (input) input.classList.toggle('invalid', rate === null);
+    return rate === null ? null : { name: base.name, rate: rate, manual: true };
   }
 
   /**
@@ -2488,6 +2569,7 @@
     const box = document.getElementById('switchTargetPreview');
     if (!box) return;
 
+    syncModalManualRate_();
     const lot = normalizeLot_(document.getElementById('modalLotNo')?.value);
     const type = getModalSelectedType_();
     const plan = (lot && type) ? previewTargetAfterSwitch_(lot, type) : null;
@@ -2855,7 +2937,10 @@
 
     const newType = getModalSelectedType_();
     if (!newType) {
-      alert('กรุณาเลือกประเภทงานของ LOT ปลายทาง');
+      const base = findProductType_(document.getElementById('modalProductType')?.value);
+      alert(base && base.manual
+        ? `กรุณากรอก Rate ${base.name} เป็นจำนวนเต็ม ${MANUAL_RATE_MIN}–${MANUAL_RATE_MAX} ตัว/ชม.`
+        : 'กรุณาเลือกประเภทงานของ LOT ปลายทาง');
       return;
     }
 
@@ -2884,6 +2969,7 @@
       isSwitchLot: true,
       newLotNumber: newLot,
       productType: newType.name,
+      productRate: newType.manual ? newType.rate : '',
       totalWorkingHours,
       switchAfterSlot,
       clickedSlotLabel: switchAfterSlot,
