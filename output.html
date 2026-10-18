@@ -773,6 +773,7 @@
     }
     .modal-type-hint.lock{color:#0f766e}
     .modal-type-hint.warn{color:#b45309}
+    .slot-len-tag{display:inline-block;margin-left:4px;padding:0 6px;border-radius:6px;background:#fffbeb;color:#b45309;border:1px solid #fde68a;font-size:.68rem;font-weight:800}
     .modal-manual-rate{margin-top:8px;padding:10px;border:1.5px dashed #f59e0b;border-radius:12px;background:#fffbeb}
     .modal-manual-rate label{color:#92400e}
     .modal-manual-rate input{font-size:1.1rem;font-weight:800;text-align:center}
@@ -1209,21 +1210,30 @@
     const segments = []; // [{ lot, type, rate, hours }] ตามลำดับเวลา
     let total = 0;
 
-    slots.forEach(slot => {
-      const lot = allocation.slotLotMap[slot.label];
-      if (!lot) return;
-      const rate = rateForLot_(lot, lotTypes);
-      total += rate;
+    // V15: ชั่วโมงจริงของช่อง (0.5 / 1.5) และเป้าราย slot แบบเดียวกับ Apps Script
+    const items = applySlotTargets_(
+      slots
+        .filter(slot => allocation.slotLotMap[slot.label])
+        .map(slot => {
+          const lot = allocation.slotLotMap[slot.label];
+          return { slot: slot.label, lot, rate: rateForLot_(lot, lotTypes) };
+        })
+    );
+    const slotTargets = {};
+
+    items.forEach(item => {
+      total += item.target;
+      slotTargets[item.slot] = item.target;
 
       const last = segments[segments.length - 1];
-      if (last && last.lot === lot) {
-        last.hours += 1;
+      if (last && last.lot === item.lot) {
+        last.hours += item.hours;
       } else {
-        segments.push({ lot, type: typeForLot_(lot, lotTypes), rate, hours: 1 });
+        segments.push({ lot: item.lot, type: typeForLot_(item.lot, lotTypes), rate: item.rate, hours: item.hours });
       }
     });
 
-    return { total, segments, slotLotMap: allocation.slotLotMap };
+    return { total, segments, slotTargets, slotLotMap: allocation.slotLotMap };
   }
 
   function describeSegments_(segments) {
@@ -1231,6 +1241,14 @@
     return segments
       .map(seg => `${seg.type || seg.lot} ${seg.hours} ชม. × ${seg.rate}`)
       .join(' + ');
+  }
+
+  // เป้าราย slot ของแผนปัจจุบัน (แสดงข้างช่องกรอก)
+  let currentSlotTargets = {};
+
+  function slotTargetFor_(label, lot) {
+    if (Object.prototype.hasOwnProperty.call(currentSlotTargets, label)) return currentSlotTargets[label];
+    return Math.round(rateForLot_(lot) * slotHours_(label));
   }
 
   function recalcCurrentTarget_() {
@@ -1241,6 +1259,7 @@
     const plan = computePlanTarget_(
       lineVal, currentHours1, initialLot, currentLotSwitchHistory, activeLots, currentLotTypes
     );
+    currentSlotTargets = plan.slotTargets || {};
 
     if (plan.total > 0) {
       currentTarget1 = plan.total;
@@ -1273,7 +1292,10 @@
   // ตารางเวลาแยกตามวันที่ (ต้องตรงกับ Apps Script)
   // ก่อน 14/10/2026 = ตารางเดิม 08.30 • ตั้งแต่ 14/10/2026 = ตารางใหม่ 08.00
   // ============================================================
-  const SCHEDULE_V2_START_DATE = '2099-12-31'; // ยังไม่เปิดใช้ตารางใหม่ — ใช้ตารางเดิม 08.30
+  // V15: ตารางใหม่ตั้งแต่ 19/10/2026 (ไฟล์ Time.xlsx ชีท Fac 2) • พักเที่ยง 12.00-13.00
+  // 8 ชม. เข้า 08.30 • 9–11 ชม. เข้า 08.00 • 11 ชม. พักเย็น 17.30-18.00
+  // ช่องไม่ครบชั่วโมง (0.5 / 1.5) → เป้า = Rate × ความยาวช่อง
+  const SCHEDULE_V2_START_DATE = '2026-10-19';
 
   const V1_TIME_SLOTS_DEF = [
     { label: "08.30-09.30", endMin: 570 },
@@ -1290,29 +1312,57 @@
     { label: "19.30-20.30", endMin: 1230 }
   ];
 
-  const V2_TIME_SLOTS_DEF = [
-    { label: "08.00-09.00", endMin: 540 },
-    { label: "09.00-10.00", endMin: 600 },
-    { label: "10.00-11.00", endMin: 660 },
-    { label: "11.00-12.00", endMin: 720 },
-    { label: "12.00-13.00", endMin: 780 },
-    { label: "13.00-14.00", endMin: 840 },
-    { label: "14.00-15.00", endMin: 900 },
-    { label: "15.00-16.00", endMin: 960 },
-    { label: "16.00-17.00", endMin: 1020 },
-    { label: "17.00-18.00", endMin: 1080 },
-    { label: "18.00-19.00", endMin: 1140 },
-    { label: "19.00-20.00", endMin: 1200 },
-    { label: "20.00-21.00", endMin: 1260 }
-  ];
-
-  const V2_BASE_8 = ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00"];
+  const V2_LUNCH_SLOT = '12.00-13.00';
+  const V2_EVENING_SLOT = '17.30-18.00';
+  const V2_BASE_0800 = ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00"];
   const V2_WORKING_SLOTS = {
-    8: V2_BASE_8,
-    9: V2_BASE_8.concat(["17.00-18.00"]),
-    10: V2_BASE_8.concat(["18.00-19.00","19.00-20.00"]),
-    11: V2_BASE_8.concat(["18.00-19.00","19.00-20.00","20.00-21.00"])
+    8: ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.30"],
+    9: V2_BASE_0800.concat(["17.00-18.00"]),
+    10: V2_BASE_0800.concat(["17.00-18.00","18.00-19.00"]),
+    11: V2_BASE_0800.concat(["17.00-17.30","18.00-19.00","19.00-20.00","20.00-20.30"])
   };
+
+  function slotMinutes_(label) {
+    const toMin = t => { const x = String(t || '').split('.'); return (Number(x[0]) || 0) * 60 + (Number(x[1]) || 0); };
+    const parts = String(label || '').split('-');
+    return { start: toMin(parts[0]), end: toMin(parts[1]) };
+  }
+
+  // ความยาวช่อง (ชม.) จากป้ายเวลา เช่น 11.30-12.00 = 0.5
+  function slotHours_(label) {
+    const m = slotMinutes_(label);
+    const h = (m.end - m.start) / 60;
+    return h > 0 ? h : 1;
+  }
+
+  function slotHoursTag_(label) {
+    const h = slotHours_(label);
+    return h === 1 ? '' : `<span class="slot-len-tag">${h} ชม.</span>`;
+  }
+
+  // เป้าราย slot = Rate × ชม. ปัดเศษ → เศษใส่ช่องสุดท้ายของ LOT (เหมือน Apps Script)
+  function applySlotTargets_(items) {
+    const raw = {}, rounded = {}, last = {};
+    items.forEach((item, i) => {
+      item.hours = slotHours_(item.slot);
+      const value = (Number(item.rate) || 0) * item.hours;
+      item.target = Math.round(value);
+      raw[item.lot] = (raw[item.lot] || 0) + value;
+      rounded[item.lot] = (rounded[item.lot] || 0) + item.target;
+      last[item.lot] = i;
+    });
+    Object.keys(last).forEach(lot => { items[last[lot]].target += Math.round(raw[lot]) - rounded[lot]; });
+    return items;
+  }
+
+  const V2_TIME_SLOTS_DEF = (() => {
+    const set = {};
+    Object.values(V2_WORKING_SLOTS).forEach(list => list.forEach(x => { set[x] = 1; }));
+    set[V2_LUNCH_SLOT] = 1; set[V2_EVENING_SLOT] = 1;
+    return Object.keys(set)
+      .map(label => ({ label, startMin: slotMinutes_(label).start, endMin: slotMinutes_(label).end }))
+      .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  })();
 
   function todayBangkok_() {
     try {
@@ -1327,12 +1377,12 @@
   const TIME_SLOTS_DEF = SCHEDULE_IS_V2 ? V2_TIME_SLOTS_DEF : V1_TIME_SLOTS_DEF;
 
   // ช่วงพักของวันนี้ตามชั่วโมงทำงาน
-  // ใหม่: 12.00-13.00 เสมอ • 17.00-18.00 เฉพาะ 10-11 ชม. (9 ชม. ทำต่อไม่พัก)
+  // ใหม่: 12.00-13.00 เสมอ • 17.30-18.00 เฉพาะ 11 ชม.
   function getBreakSlotsForHours_(totalHours) {
     if (!SCHEDULE_IS_V2) return ['12.30-13.30'];
-    return Math.floor(Number(totalHours) || 0) >= 10
-      ? ['12.00-13.00', '17.00-18.00']
-      : ['12.00-13.00'];
+    return Math.floor(Number(totalHours) || 0) >= 11
+      ? [V2_LUNCH_SLOT, V2_EVENING_SLOT]
+      : [V2_LUNCH_SLOT];
   }
 
   // FAST LOAD: HTML ทั้งฟอร์มอยู่ก่อน <script> นี้แล้ว จึงเริ่มดึงข้อมูล LINE ได้ทันที
@@ -1846,13 +1896,9 @@
 
     // ช่วงพักให้ถือ LOT เดียวกับรอบทำงานก่อนหน้า
     if (cleanLabel === breakSlot) {
-      const fullIndex = TIME_SLOTS_DEF.findIndex(slot => slot.label === cleanLabel);
-      for (let i = fullIndex - 1; i >= 0; i--) {
-        const prevLabel = TIME_SLOTS_DEF[i]?.label || '';
-        if (prevLabel && prevLabel !== breakSlot) {
-          return getPlannedLotForSlot_(prevLabel, breakSlot);
-        }
-      }
+      const breakStart = slotMinutes_(cleanLabel).start;
+      const prev = workingSlots.filter(slot => slotMinutes_(slot.label).end <= breakStart).pop();
+      if (prev) return getPlannedLotForSlot_(prev.label, breakSlot);
       return normalizeLot_(currentLotPlan[0]?.lot || currentActiveLot);
     }
 
@@ -1901,6 +1947,17 @@
     const selectedLine = document.getElementById('line').value.toUpperCase();
     const breakSlots = getBreakSlotsForHours_(totalHours);
     const breakSlot = breakSlots[0];
+
+    // V15: เป้าราย slot ตามความยาวช่อง (0.5 / 1.5 ชม.)
+    try {
+      const initialLot = normalizeLot_(currentLotPlan[0]?.lot || activeLots[0] || currentActiveLot);
+      currentSlotTargets = computePlanTarget_(
+        document.getElementById('line').value, totalHours, initialLot,
+        currentLotSwitchHistory, activeLots, currentLotTypes
+      ).slotTargets || {};
+    } catch (err) {
+      currentSlotTargets = {};
+    }
 
     const now = new Date();
     const currentMinutes = (now.getHours() * 60) + now.getMinutes();
@@ -1992,7 +2049,7 @@
           </div>
           <input type="hidden" class="input-lot-val" value="${slotLot}">
           <div class="model-subtext">${getModelTextForLot_(slotLot)}</div>
-          ${!isBreakTime && slotLot ? `<div class="slot-rate-text">🎯 เป้า ${rateForLot_(slotLot).toLocaleString()} ชิ้น${typeForLot_(slotLot) ? ' • ' + escapeHtml_(typeForLot_(slotLot)) : ''}</div>` : ''}
+          ${!isBreakTime && slotLot ? `<div class="slot-rate-text">🎯 เป้า ${slotTargetFor_(slot.label, slotLot).toLocaleString()} ชิ้น${slotHoursTag_(slot.label)}${typeForLot_(slotLot) ? ' • ' + escapeHtml_(typeForLot_(slotLot)) : ''}</div>` : ''}
         </div>
 
         <input type="number"
@@ -2087,7 +2144,7 @@
 
 
   function getActualNormalTotal_(existingData) {
-    const NORMAL_END_MIN = SCHEDULE_IS_V2 ? 1020 : 1050;
+    const NORMAL_END_MIN = 1050;
     const normalOrder = TIME_SLOTS_DEF.filter(s => s.endMin <= NORMAL_END_MIN);
     let total = 0;
     normalOrder.forEach(slot => {
@@ -3170,7 +3227,7 @@
       else { note = '⚠️ ยังไม่ได้กรอก'; noteCls += ' warn'; }
 
       const rateText = !x.isBreak && x.rate
-        ? `<div class="slot-rate-text">🎯 เป้า ${Number(x.rate).toLocaleString()} ชิ้น${x.type ? ' • ' + escapeHtml_(x.type) : ''}</div>`
+        ? `<div class="slot-rate-text">🎯 เป้า ${Number(x.target !== undefined ? x.target : x.rate).toLocaleString()} ชิ้น${slotHoursTag_(x.slot)}${x.type ? ' • ' + escapeHtml_(x.type) : ''}</div>`
         : '';
 
       return `

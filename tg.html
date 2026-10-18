@@ -527,6 +527,18 @@
       : `ค่าเริ่มต้น ${formatNumber(type.rate)} ตัว/ชม. • แก้ให้ตรงรุ่น (${RATE_MIN}–${RATE_MAX})`;
   }
 
+  // V15: ตั้งแต่ 19/10/2026 — 8 ชม. เข้า 08.30 / 9–11 ชม. (มี OT) เข้า 08.00
+  function startTimeNote_(hours) {
+    let today = "";
+    try {
+      today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    } catch (e) {
+      today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    }
+    if (today < "2026-10-19") return "";
+    return hours > 8 ? " • เข้างาน 08.00 (มี OT)" : " • เข้างาน 08.30";
+  }
+
   function getEffectiveRate_() {
     const type = getSelectedType_();
     if (!type) return null;
@@ -558,7 +570,7 @@
 
     document.getElementById("targetDisplay").textContent = formatNumber(hours * rate);
     document.getElementById("targetNote").textContent =
-      `${type.name} ${formatNumber(rate)} ตัว/ชม. × ${hours} ชม.`;
+      `${type.name} ${formatNumber(rate)} ตัว/ชม. × ${hours} ชม.${startTimeNote_(hours)}`;
   }
 
   function setTypeHint_(message, cls) {

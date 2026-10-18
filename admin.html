@@ -361,7 +361,12 @@
   function dayLots() {
     const out = [];
     day.slots.forEach(s => { if (!s.isBreak && s.lot && !out.some(l => l.lot === s.lot)) out.push({ lot: s.lot, hours: 0, target: 0 }); });
-    day.slots.forEach(s => { if (s.isBreak) return; const l = out.find(x => x.lot === s.lot); l.hours++; l.target += Number(s.rate) || 0; });
+    day.slots.forEach(s => {
+      if (s.isBreak) return;
+      const l = out.find(x => x.lot === s.lot);
+      l.hours += Number(s.hours) || 1;
+      l.target += Number(s.target !== undefined ? s.target : s.rate) || 0;
+    });
     out.forEach(l => {
       const m = (day.lotTypeMap || {})[l.lot] || {};
       l.type = m.type || ''; l.rate = Number(m.rate) || 0;
@@ -420,14 +425,15 @@
       const qty = d ? (d.remove ? '' : d.qty) : (saved ? saved.output : '');
       const remark = d ? (d.remove ? '' : d.remark) : (saved ? saved.remark : '');
       const otTag = workIndex > 8 ? '<span class="len ot">OT</span>' : '';
+      const lenTag = s.hours && Number(s.hours) !== 1 ? `<span class="len odd">${s.hours} ชม.</span>` : '';
       const t = findType(s.type);
       const typeTag = s.type ? `<span class="lot-type ${t && t.manual ? 'manual' : ''}">${esc(s.type)}</span>` : '';
       const who = d && d.remove ? '<span style="color:#b91c1c;font-weight:800">จะลบ</span>'
         : saved ? `${esc(saved.reportedBy || '-')}<br>${esc(saved.time || '')}` : '<span style="color:#b45309">ยังไม่กรอก</span>';
       return `<tr class="${workIndex > 8 ? 'ot' : ''}">
-        <td class="slot-time">${esc(s.slot)}${otTag}</td>
+        <td class="slot-time">${esc(s.slot)}${lenTag}${otTag}</td>
         <td class="lot">${esc(s.lot || '-')}${typeTag}<small>${esc((day.masterMap || {})[s.lot] || '')}</small></td>
-        <td class="num">${fmtNum(s.rate)}</td>
+        <td class="num">${fmtNum(s.target !== undefined ? s.target : s.rate)}</td>
         <td class="num"><input class="inp qty ${d ? 'changed' : ''}" type="number" min="0" step="1" value="${esc(qty)}" placeholder="-" data-slot="${esc(s.slot)}" oninput="editSlot(this)"></td>
         <td><input class="inp remark ${d ? 'changed' : ''}" value="${esc(remark)}" maxlength="200" data-slot="${esc(s.slot)}" oninput="editSlot(this)"></td>
         <td class="who">${who}</td>

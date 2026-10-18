@@ -395,16 +395,25 @@ var LINE_CODES = ["201","202","203","204","205","206"];
 // ก่อน 14/10/2026 = ตารางเดิม 08.30 • ตั้งแต่ 14/10/2026 = ตารางใหม่ 08.00
 // ใหม่: พักเที่ยง 12.00-13.00 • 9 ชม. ทำ 17.00-18.00 ต่อ • 10-11 ชม. พัก 17.00-18.00
 // ============================================================
-var SCHEDULE_V2_START_DATE = "2099-12-31"; // ยังไม่เปิดใช้ตารางใหม่ — ใช้ตารางเดิม 08.30
+var SCHEDULE_V2_START_DATE = "2026-10-19"; // V15: ตารางใหม่ (8 ชม. เข้า 08.30 / OT เข้า 08.00 • พักเที่ยง 12.00)
 var V1_TIME_SLOTS = ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.30","12.30-13.30","13.30-14.30","14.30-15.30","15.30-16.30","16.30-17.30","17.30-18.30","18.30-19.30","19.30-20.30"];
-var V2_TIME_SLOTS = ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","12.00-13.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00","17.00-18.00","18.00-19.00","19.00-20.00","20.00-21.00"];
-var V2_BASE_8 = ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00"];
+var V2_BASE_0800 = ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00"];
 var V2_WORKING = {
-  8: V2_BASE_8,
-  9: V2_BASE_8.concat(["17.00-18.00"]),
-  10: V2_BASE_8.concat(["18.00-19.00","19.00-20.00"]),
-  11: V2_BASE_8.concat(["18.00-19.00","19.00-20.00","20.00-21.00"])
+  8: ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.30"],
+  9: V2_BASE_0800.concat(["17.00-18.00"]),
+  10: V2_BASE_0800.concat(["17.00-18.00","18.00-19.00"]),
+  11: V2_BASE_0800.concat(["17.00-17.30","18.00-19.00","19.00-20.00","20.00-20.30"])
 };
+var V2_LUNCH = "12.00-13.00", V2_EVENING = "17.30-18.00"; // พักเย็นเฉพาะ 11 ชม.
+var V2_TIME_SLOTS = (function(){
+  var set={};
+  Object.keys(V2_WORKING).forEach(function(h){V2_WORKING[h].forEach(function(x){set[x]=1})});
+  set[V2_LUNCH]=1; set[V2_EVENING]=1;
+  return Object.keys(set).sort(compareSlot_);
+})();
+function compareSlot_(a,b){return slotStartMin_(a)-slotStartMin_(b)||slotEndMinutes(a)-slotEndMinutes(b)}
+// ความยาวช่อง (ชม.) จากป้ายเวลา เช่น 16.00-17.30 = 1.5
+function slotHoursOf(slot){var h=(slotEndMinutes(slot)-slotStartMin_(slot))/60;return h>0?h:1}
 
 // ค่าที่ใช้กับมุมมองปัจจุบัน — เปลี่ยนตามวันที่ที่เลือกดู (applySchedule_)
 var TIME_SLOTS = V1_TIME_SLOTS.slice();
@@ -413,14 +422,14 @@ var BREAK_SLOTS = ["12.30-13.30"];
 var VIEW_DATE = "";
 
 function isV2Date_(d){ return String(d||"") >= SCHEDULE_V2_START_DATE; }
-function isLunchSlot_(slot){ return slot === "12.30-13.30" || slot === "12.00-13.00"; }
+function isLunchSlot_(slot){ return slot === "12.30-13.30" || slot === V2_LUNCH || slot === V2_EVENING; }
 function slotStartMin_(slot){
   var p=String(slot||"").split("-")[0].split(".");
   return Number(p[0])*60+Number(p[1]||0);
 }
 function breakSlotsFor_(d, hours){
   if(!isV2Date_(d)) return ["12.30-13.30"];
-  return num(hours)>=10 ? ["12.00-13.00","17.00-18.00"] : ["12.00-13.00"];
+  return num(hours)>=11 ? [V2_LUNCH,V2_EVENING] : [V2_LUNCH];
 }
 function itemBreakSlots_(item){
   if(item && Array.isArray(item.break_slots) && item.break_slots.length) return item.break_slots;
@@ -436,19 +445,19 @@ function applySchedule_(fromDate, toDate){
   if(!isV2Date_(from)) V1_TIME_SLOTS.forEach(function(s){set[s]=1});
   if(isV2Date_(to)) V2_TIME_SLOTS.forEach(function(s){set[s]=1});
   if(!Object.keys(set).length) V1_TIME_SLOTS.forEach(function(s){set[s]=1});
-  TIME_SLOTS=Object.keys(set).sort(function(a,b){return slotStartMin_(a)-slotStartMin_(b)});
+  TIME_SLOTS=Object.keys(set).sort(compareSlot_);
   BREAK_SLOTS=[];
   if(!isV2Date_(from)) BREAK_SLOTS.push("12.30-13.30");
-  if(isV2Date_(to)) BREAK_SLOTS.push("12.00-13.00","17.00-18.00");
+  if(isV2Date_(to)) BREAK_SLOTS.push(V2_LUNCH,V2_EVENING);
   BREAK_SLOT=BREAK_SLOTS[0];
 }
 var RATE = 80; // V9: Rate สำรอง — Rate จริงต่อ slot มาจาก hourly_target ของ Apps Script
 
-// เป้าของ slot ตามประเภทงานของ LOT ที่ทำใน slot นั้น
+// เป้าของ slot = Rate ของ LOT × ความยาวช่อง (Apps Script คิดมาให้ใน hourly_target)
 function slotRate(item,slot){
   var t=item&&item.hourly_target;
   var v=t?Number(t[slot]):NaN;
-  return Number.isFinite(v)&&v>0?v:RATE;
+  return Number.isFinite(v)&&v>0?v:Math.round(RATE*slotHoursOf(slot));
 }
 function currentRateOf(item){
   var v=Number(item&&item.rate_per_hour);
@@ -682,7 +691,8 @@ function targetNowFor(item,dateStr){
   return Math.min(num(item.target),sum);
 }
 function actualPerHour(item,dateStr){
-  var h=reportedWorkingSlots(item).length;
+  // V15: ชั่วโมงจริงของช่องที่กรอกแล้ว (0.5 / 1.5 ชม.)
+  var h=reportedWorkingSlots(item).reduce(function(a,s){return a+slotHoursOf(s)},0);
   if(!h)return 0;
   return Math.round(reportedActual(item)/h);
 }
@@ -1276,7 +1286,7 @@ function renderHourlyChart(item){
     plugins:[breakShadePlugin],
     data:{labels:labels,datasets:[
       {label:"ผลิตได้จริง",data:actual,backgroundColor:actualColors,borderRadius:7},
-      {type:"line",label:"เป้าต่อชั่วโมง",data:target,borderColor:"#6366F1",borderWidth:2,borderDash:[6,5],pointRadius:0,tension:0,stepped:"middle",spanGaps:false,datalabels:{display:false}}
+      {type:"line",label:"เป้าของช่อง",data:target,borderColor:"#6366F1",borderWidth:2,borderDash:[6,5],pointRadius:0,tension:0,stepped:"middle",spanGaps:false,datalabels:{display:false}}
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
@@ -1286,7 +1296,8 @@ function renderHourlyChart(item){
         datalabels:{color:"#fff",font:{family:"Kanit",weight:"bold",size:9},formatter:function(v){return v>0?v:""}}
       },
       scales:{
-        x:{grid:{display:false},ticks:{font:{family:"Kanit",size:9},maxRotation:45,minRotation:45}},
+        x:{grid:{display:false},ticks:{font:{family:"Kanit",size:9},maxRotation:45,minRotation:45,
+          callback:function(v,i){var s=labels[i];var h=slotHoursOf(s);return (h!==1&&!isBreak(s))?[s,"("+h+" ชม.)"]:s}}},
         y:{beginAtZero:true,suggestedMax:100,ticks:{font:{family:"Kanit"}}}
       }
     }
