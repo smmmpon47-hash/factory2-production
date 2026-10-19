@@ -407,7 +407,7 @@
       <div class="strip">
         <div class="stat"><div class="k">เป้ารวมทั้งวัน</div><div class="v">${fmtNum(day.target)} <small>ชิ้น</small></div></div>
         <div class="stat"><div class="k">ผลิตได้ (ยอดที่กรอก)</div><div class="v">${fmtNum(actual)} <small>ชิ้น</small></div></div>
-        <div class="stat"><div class="k">เวลาทำงาน / คน</div><div class="v">${day.totalWorkingHours} <small>ชม.${day.startTime ? ' • เข้า ' + esc(day.startTime.replace(':', '.')) : ''} / ${day.manpower === null || day.manpower === undefined || day.manpower === '' ? '-' : esc(day.manpower)} คน</small></div></div>
+        <div class="stat"><div class="k">เวลาทำงาน / คน</div><div class="v">${day.totalWorkingHours} <small>ชม. / ${day.manpower === null || day.manpower === undefined || day.manpower === '' ? '-' : esc(day.manpower)} คน</small></div></div>
         <div class="stat"><div class="k">LOT</div><div class="v" style="font-size:1rem">${esc(lots.map(l => l.lot).join(' → '))}</div></div>
         <div class="stat"><div class="k">ออเดอร์คงเหลือ (สะสมทุกไลน์)</div><div class="v" style="font-size:.92rem">${orderText}</div></div>
       </div>
@@ -489,7 +489,7 @@
 
   /* แผน: ชั่วโมงทำงาน + ประเภท/Rate ของแต่ละ LOT */
   function planNow(lots) {
-    return planDraft || { hours: day.totalWorkingHours, start: day.startTime || '', lots: lots.map(l => ({ lot: l.lot, type: l.type, rate: l.rate })) };
+    return planDraft || { hours: day.totalWorkingHours, lots: lots.map(l => ({ lot: l.lot, type: l.type, rate: l.rate })) };
   }
   function renderPlanCard(lots) {
     const p = planNow(lots);
@@ -497,8 +497,6 @@
       .map(t => `<option value="${esc(t.name)}" ${t.name === cur ? 'selected' : ''}>${esc(t.name)}${t.manual ? ' (กรอกเอง)' : ' · ' + t.rate}</option>`).join('');
     return `<div class="card" id="planCard">
       <h3>แผนการผลิต <span class="note">เป้า = Σ Rate ของแต่ละชั่วโมง</span></h3>
-      ${day.v3 ? `<div class="sub">เวลาเข้างาน <span class="pending">พักเที่ยงวันนั้น ${esc(String(day.breakStart || '').replace(':', '.'))}</span></div>
-      <div class="chips" style="--n:2">${(day.startTimes || ['08:00', '08:30']).map(st => `<button class="chip ${p.start === st ? 'on' : ''}" onclick="pickPlanStart('${st}')">${st.replace(':', '.')}<small>${st === '08:00' ? 'มี OT เช้า' : 'เข้าปกติ'}</small></button>`).join('')}</div>` : ''}
       <div class="sub">เวลาทำงานรวม</div>
       <div class="chips" style="--n:4">${HOURS_OPTIONS.map(h => `<button class="chip ${Number(p.hours) === h ? 'on' : ''}" onclick="pickPlanHours(${h})">${h} ชม.<small>${h > 8 ? 'OT ' + (h - 8) + ' ชม.' : 'ปกติ'}</small></button>`).join('')}</div>
       <div class="sub">ประเภทงาน / Rate ต่อ LOT</div>
@@ -520,18 +518,11 @@
   }
   function planChanged(p, lots) {
     return Number(p.hours) !== Number(day.totalWorkingHours) ||
-      (p.start || '') !== (day.startTime || '') ||
       p.lots.some((x, i) => x.type !== lots[i].type || Number(x.rate) !== Number(lots[i].rate));
   }
   function pickPlanHours(h) {
     const lots = dayLots();
     const p = JSON.parse(JSON.stringify(planNow(lots))); p.hours = h;
-    planDraft = planChanged(p, lots) ? p : null;
-    renderDay(); updateSaveBar();
-  }
-  function pickPlanStart(st) {
-    const lots = dayLots();
-    const p = JSON.parse(JSON.stringify(planNow(lots))); p.start = st;
     planDraft = planChanged(p, lots) ? p : null;
     renderDay(); updateSaveBar();
   }
@@ -568,7 +559,6 @@
     if ((Object.keys(slotDraft).length || mpDraft !== undefined) && !confirm('มียอด/จำนวนคนที่แก้แต่ยังไม่บันทึก จะถูกทิ้งไป ดำเนินการต่อไหม?')) return;
     const changes = [];
     if (Number(p.hours) !== Number(day.totalWorkingHours)) changes.push(`เวลาทำงาน ${day.totalWorkingHours} → ${p.hours} ชม.`);
-    if ((p.start || '') !== (day.startTime || '')) changes.push(`เวลาเข้างาน ${String(day.startTime).replace(':', '.')} → ${String(p.start).replace(':', '.')} (ช่องเวลาเปลี่ยนตาม)`);
     p.lots.forEach((x, i) => {
       const t = findType(x.type);
       const rate = t.manual ? Number(x.rate) : t.rate;
@@ -579,7 +569,7 @@
 ${changes.join('\n')}`)) return;
     const lotTypes = {};
     p.lots.forEach(x => { const t = findType(x.type); lotTypes[x.lot] = { type: x.type, rate: t.manual ? Number(x.rate) : t.rate }; });
-    const r = await act(() => post({ action: 'MAINT_UPDATE_PLAN', line: day.line, date: day.date, totalWorkingHours: Number(p.hours), startTime: p.start || '', lotTypes: lotTypes }),
+    const r = await act(() => post({ action: 'MAINT_UPDATE_PLAN', line: day.line, date: day.date, totalWorkingHours: Number(p.hours), lotTypes: lotTypes }),
       r => r.changed ? `บันทึกแผนแล้ว • เป้ารวมใหม่ ${fmtNum(r.totalTarget)} ชิ้น` : 'ไม่มีอะไรเปลี่ยน');
     if (r) await loadDay();
   }

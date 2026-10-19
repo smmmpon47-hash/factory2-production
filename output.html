@@ -1401,16 +1401,6 @@
   // V16: ตั้งรอบพักเที่ยงของวันนี้ตามที่ Apps Script ส่งมา
   function applyServerSchedule_(schedule) {
     if (!SCHEDULE_IS_V2 || !schedule || !schedule.breakStart) return;
-    // V17: ตารางคำนวณตามเวลาเข้างานของไลน์ (Apps Script ส่งมาให้ทั้งชุด)
-    if (schedule.v3 && schedule.grids) {
-      const st = schedule.startTime && schedule.grids[schedule.startTime] ? schedule.startTime : Object.keys(schedule.grids)[0];
-      const key = 'v3|' + st;
-      V2_GRIDS[key] = schedule.grids[st];
-      V2_BREAK_START = key;
-      V2_LUNCH_SLOT = (schedule.grids[st].breaks[8] || [])[0] || V2_LUNCH_SLOT;
-      TIME_SLOTS_DEF = buildV2TimeSlotsDef_();
-      return;
-    }
     const next = String(schedule.breakStart);
     if (schedule.workingSlotsByHours && schedule.breakSlotsByHours) {
       V2_GRIDS[next] = { working: schedule.workingSlotsByHours, breaks: schedule.breakSlotsByHours };
@@ -1425,8 +1415,9 @@
   // ใหม่: 12.00-13.00 เสมอ • 17.30-18.00 เฉพาะ 11 ชม.
   function getBreakSlotsForHours_(totalHours) {
     if (!SCHEDULE_IS_V2) return ['12.30-13.30'];
-    const h = Math.floor(Number(totalHours) || 0);
-    return buildV2Grid_([8, 9, 10, 11].includes(h) ? h : 8, V2_BREAK_START).breaks;
+    return Math.floor(Number(totalHours) || 0) >= 11
+      ? [V2_LUNCH_SLOT, V2_EVENING_SLOT]
+      : [V2_LUNCH_SLOT];
   }
 
   // FAST LOAD: HTML ทั้งฟอร์มอยู่ก่อน <script> นี้แล้ว จึงเริ่มดึงข้อมูล LINE ได้ทันที
