@@ -397,20 +397,28 @@ var LINE_CODES = ["201","202","203","204","205","206"];
 // ============================================================
 var SCHEDULE_V2_START_DATE = "2026-10-19"; // V15: ตารางใหม่ (8 ชม. เข้า 08.30 / OT เข้า 08.00 • พักเที่ยง 12.00)
 var V1_TIME_SLOTS = ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.30","12.30-13.30","13.30-14.30","14.30-15.30","15.30-16.30","16.30-17.30","17.30-18.30","18.30-19.30","19.30-20.30"];
-var V2_BASE_0800 = ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00"];
-var V2_WORKING = {
-  8: ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.30"],
-  9: V2_BASE_0800.concat(["17.00-18.00"]),
-  10: V2_BASE_0800.concat(["17.00-18.00","18.00-19.00"]),
-  11: V2_BASE_0800.concat(["17.00-17.30","18.00-19.00","19.00-20.00","20.00-20.30"])
-};
-var V2_LUNCH = "12.00-13.00", V2_EVENING = "17.30-18.00"; // พักเย็นเฉพาะ 11 ชม.
-var V2_TIME_SLOTS = (function(){
+var V2_EVENING = "17.30-18.00"; // พักเย็นเฉพาะ 11 ชม.
+// V16: รอบพักเที่ยงมาจาก Apps Script (schedule.breakStart) — ค่าเริ่มต้น 12.00
+var V2_BREAK_STARTS = ["12:00"];
+// กฎเดียวกับ Apps Script buildV2Grid_
+function buildV2Grid_(hours,breakStart){
+  function pad(n){return String(n).padStart(2,"0")}
+  function lbl(a,b){return pad(Math.floor(a/60))+"."+pad(a%60)+"-"+pad(Math.floor(b/60))+"."+pad(b%60)}
+  var bs=String(breakStart||"12:00").replace(".",":").split(":");
+  var L=(Number(bs[0])||12)*60+(Number(bs[1])||0), working=[];
+  function fill(from,to,mergeTail){var t=from;while(t<to){var e=Math.min(t+60,to);if(mergeTail&&to-e>0&&to-e<60)e=to;working.push(lbl(t,e));t=e}}
+  if(hours===8){fill(510,L,false);fill(L+60,1050,true)}
+  else{fill(480,L,false);if(hours===11){fill(L+60,1050,false);fill(1080,1230,false)}else fill(L+60,480+hours*60+60,false)}
+  var breaks=[lbl(L,L+60)];
+  if(hours===11)breaks.push(V2_EVENING);
+  return {working:working,breaks:breaks};
+}
+function v2AllSlots_(){
   var set={};
-  Object.keys(V2_WORKING).forEach(function(h){V2_WORKING[h].forEach(function(x){set[x]=1})});
-  set[V2_LUNCH]=1; set[V2_EVENING]=1;
+  V2_BREAK_STARTS.forEach(function(b){[8,9,10,11].forEach(function(h){var g=buildV2Grid_(h,b);g.working.concat(g.breaks).forEach(function(x){set[x]=1})})});
   return Object.keys(set).sort(compareSlot_);
-})();
+}
+function v2LunchSlots_(){return V2_BREAK_STARTS.map(function(b){return buildV2Grid_(8,b).breaks[0]})}
 function compareSlot_(a,b){return slotStartMin_(a)-slotStartMin_(b)||slotEndMinutes(a)-slotEndMinutes(b)}
 // ความยาวช่อง (ชม.) จากป้ายเวลา เช่น 16.00-17.30 = 1.5
 function slotHoursOf(slot){var h=(slotEndMinutes(slot)-slotStartMin_(slot))/60;return h>0?h:1}
@@ -422,14 +430,14 @@ var BREAK_SLOTS = ["12.30-13.30"];
 var VIEW_DATE = "";
 
 function isV2Date_(d){ return String(d||"") >= SCHEDULE_V2_START_DATE; }
-function isLunchSlot_(slot){ return slot === "12.30-13.30" || slot === V2_LUNCH || slot === V2_EVENING; }
+function isLunchSlot_(slot){ return BREAK_SLOTS.indexOf(slot)>=0; }
 function slotStartMin_(slot){
   var p=String(slot||"").split("-")[0].split(".");
   return Number(p[0])*60+Number(p[1]||0);
 }
 function breakSlotsFor_(d, hours){
   if(!isV2Date_(d)) return ["12.30-13.30"];
-  return num(hours)>=11 ? [V2_LUNCH,V2_EVENING] : [V2_LUNCH];
+  return buildV2Grid_(num(hours)>=11?11:8,V2_BREAK_STARTS[0]).breaks;
 }
 function itemBreakSlots_(item){
   if(item && Array.isArray(item.break_slots) && item.break_slots.length) return item.break_slots;
@@ -437,18 +445,19 @@ function itemBreakSlots_(item){
 }
 
 // ช่วงวันที่ข้ามวันเปลี่ยนตาราง จะแสดง slot ของทั้งสองตารางเรียงตามเวลา
-function applySchedule_(fromDate, toDate){
+function applySchedule_(fromDate, toDate, breakStarts){
   var from=String(fromDate||todayLocal());
   var to=String(toDate||from);
   VIEW_DATE=from;
+  if(Array.isArray(breakStarts)&&breakStarts.length) V2_BREAK_STARTS=breakStarts.slice();
   var set={};
   if(!isV2Date_(from)) V1_TIME_SLOTS.forEach(function(s){set[s]=1});
-  if(isV2Date_(to)) V2_TIME_SLOTS.forEach(function(s){set[s]=1});
+  if(isV2Date_(to)) v2AllSlots_().forEach(function(s){set[s]=1});
   if(!Object.keys(set).length) V1_TIME_SLOTS.forEach(function(s){set[s]=1});
   TIME_SLOTS=Object.keys(set).sort(compareSlot_);
   BREAK_SLOTS=[];
   if(!isV2Date_(from)) BREAK_SLOTS.push("12.30-13.30");
-  if(isV2Date_(to)) BREAK_SLOTS.push(V2_LUNCH,V2_EVENING);
+  if(isV2Date_(to)) BREAK_SLOTS=BREAK_SLOTS.concat(v2LunchSlots_(),[V2_EVENING]);
   BREAK_SLOT=BREAK_SLOTS[0];
 }
 var RATE = 80; // V9: Rate สำรอง — Rate จริงต่อ slot มาจาก hourly_target ของ Apps Script
@@ -661,9 +670,11 @@ function daysInclusive(from,to){
   while(cur&&cmpYmd(cur,to)<=0&&guard<31){out.push(cur);cur=addDaysYmd(cur,1);guard++}
   return out;
 }
-function plannedSlots(hours){
+function plannedSlots(hours,item){
+  // V16: วันเดียว ใช้ช่องทำงานที่ Apps Script ส่งมา (ตามรอบพักของวันนั้น)
+  if(item&&!dashboardData.isRange&&Array.isArray(item.working_slots)&&item.working_slots.length) return item.working_slots.slice();
   var h=Math.max(0,num(hours)||8);
-  if(isV2Date_(VIEW_DATE)) return (V2_WORKING[h]||V2_WORKING[8]).slice();
+  if(isV2Date_(VIEW_DATE)) return buildV2Grid_([8,9,10,11].indexOf(h)>=0?h:8,V2_BREAK_STARTS[0]).working;
   return V1_TIME_SLOTS.filter(function(s){return s!=="12.30-13.30"}).slice(0,h);
 }
 function slotEndMinutes(slot){
@@ -673,7 +684,7 @@ function slotEndMinutes(slot){
   return Number(p[0])*60+Number(p[1]);
 }
 function reportedWorkingSlots(item){
-  var planned=plannedSlots(item.total_working_hours);
+  var planned=plannedSlots(item.total_working_hours,item);
   return planned.filter(function(slot){
     return item.hourly_reported && item.hourly_reported[slot] === true;
   });
@@ -805,7 +816,9 @@ function blankLine(code){
 }
 
 function mergeRange(payloads,from,to){
-  applySchedule_(from,to);
+  var bsSet={};
+  (payloads||[]).forEach(function(d){if(d&&d.schedule&&d.schedule.breakStart)bsSet[d.schedule.breakStart]=1});
+  applySchedule_(from,to,Object.keys(bsSet));
   var map={};
   LINE_CODES.forEach(function(c){map[c]=blankLine(c)});
   payloads.forEach(function(data){
@@ -904,7 +917,8 @@ async function loadDashboard(showLoading){
 }
 
 function renderAll(){
-  if(!dashboardData.isRange) applySchedule_(dashboardData.date||currentRange.from);
+  if(!dashboardData.isRange) applySchedule_(dashboardData.date||currentRange.from,null,
+    dashboardData.schedule&&dashboardData.schedule.breakStart?[dashboardData.schedule.breakStart]:null);
   var lines=Array.isArray(dashboardData.lines)?dashboardData.lines:[];
   var totalTarget=lines.reduce(function(s,d){return s+num(d.target)},0);
   var totalActual=lines.reduce(function(s,d){return s+num(d.actual)},0);
@@ -1173,7 +1187,7 @@ function renderDetail(item){
 
   var hrs=num(item.total_working_hours)||0;
   el("dtHours").innerText=dashboardData.isRange?"-":(hrs+" ชม.");
-  var workSlots=plannedSlots(hrs);
+  var workSlots=plannedSlots(hrs,item);
   el("dtSlotRange").innerText=(!dashboardData.isRange&&workSlots.length)
     ? workSlots[0].split("-")[0]+" ถึง "+workSlots[workSlots.length-1].split("-")[1]+" น."
     : "-";
@@ -1260,7 +1274,7 @@ function renderPulse(item,m){
 function renderHourlyChart(item){
   // มุมมองหลายวัน: แต่ละ LINE/วันพักเย็นไม่เหมือนกัน จึงแรเงาเฉพาะพักเที่ยง
   var breaks=dashboardData.isRange?TIME_SLOTS.filter(isLunchSlot_):itemBreakSlots_(item);
-  var plan=dashboardData.isRange?TIME_SLOTS.filter(function(s){return !isLunchSlot_(s)}):plannedSlots(item.total_working_hours);
+  var plan=dashboardData.isRange?TIME_SLOTS.filter(function(s){return !isLunchSlot_(s)}):plannedSlots(item.total_working_hours,item);
   var firstMin=plan.length?slotStartMin_(plan[0]):0;
   var lastMin=plan.length?slotStartMin_(plan[plan.length-1]):0;
   // แสดงช่วงพักที่อยู่ระหว่างชั่วโมงทำงานเป็นแถบสีเทา
@@ -1308,7 +1322,7 @@ function renderCumulativeChart(item){
   // กราฟนี้ไม่แสดงช่วงพัก: ใช้เฉพาะ productive slots เท่านั้น
   var labels = dashboardData.isRange
     ? TIME_SLOTS.filter(function(s){ return !isLunchSlot_(s); })
-    : plannedSlots(item.total_working_hours);
+    : plannedSlots(item.total_working_hours,item);
 
   var lastReported = -1;
   labels.forEach(function(s,i){

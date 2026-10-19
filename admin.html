@@ -139,6 +139,15 @@
     tr.inactive td { color:#94a3b8; }
     .kind-off { background:var(--red-soft); color:var(--red); }
     .kind-work { background:#ecfdf5; color:#047857; }
+    .grid-cols { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:8px; }
+    .grid-col { border:1px solid var(--line); border-radius:12px; padding:8px 10px; background:var(--soft); }
+    .grid-col b { display:block; font-size:.86rem; margin-bottom:4px; }
+    .grid-col div { font-size:.8rem; padding:2px 0; white-space:nowrap; }
+    .grid-col .brk { color:#be123c; font-weight:700; }
+    .days { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+    .day { border:1px solid var(--line); border-radius:10px; padding:6px; text-align:center; font-size:.76rem; color:var(--muted); }
+    .day b { display:block; color:var(--ink); font-size:.9rem; }
+    .day.changed { background:var(--amber-soft); border-color:var(--amber-line); }
   </style>
 </head>
 <body>
@@ -163,6 +172,7 @@
     <nav class="nav">
       <button class="on" data-page="day" onclick="showPage('day')">📝 แก้ไขข้อมูลรายไลน์</button>
       <button data-page="types" onclick="showPage('types')">🏷️ ประเภทงาน / Rate</button>
+      <button data-page="break" onclick="showPage('break')">🍱 รอบพักเที่ยง</button>
       <button data-page="holiday" onclick="showPage('holiday')">📅 วันหยุด / วันทำงานพิเศษ</button>
       <button data-page="log" onclick="showPage('log')">🧾 ประวัติการแก้</button>
     </nav>
@@ -209,6 +219,12 @@
           <button class="btn full" style="margin-top:14px" onclick="addType()">เพิ่มประเภทงาน</button>
         </div>
       </div>
+    </section>
+
+    <section class="page" id="page-break">
+      <div class="page-title">รอบพักเที่ยง</div>
+      <div class="page-sub">ทุกไลน์ในโรง 2 ใช้รอบพักเดียวกัน • ตั้งได้ตั้งแต่พรุ่งนี้เป็นต้นไป (วันนี้และวันที่ผ่านมาไม่เปลี่ยน) • ไม่ใส่วันสิ้นสุด = ใช้ไปเรื่อย ๆ • พ้นช่วงแล้วกลับไปใช้รอบก่อนหน้า (ไม่มีเลย = 12.00)</div>
+      <div id="breakBox"><div class="loading">กำลังโหลด...</div></div>
     </section>
 
     <section class="page" id="page-holiday">
@@ -324,6 +340,7 @@
     document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.page === p));
     document.querySelectorAll('.page').forEach(s => s.classList.toggle('on', s.id === 'page-' + p));
     if (p === 'log') loadLog();
+    if (p === 'break') loadBreaks();
     updateSaveBar();
   }
 
@@ -677,6 +694,78 @@ ${lines.join('\n')}`)) return;
     if (!confirm(`ลบ ${thaiDate(date)}?`)) return;
     const r = await act(() => post({ action: 'MAINT_DELETE_HOLIDAY', date: date }), 'ลบแล้ว');
     if (r) { holidays = r.holidays; renderHolidays(); }
+  }
+
+  /* ---------- รอบพักเที่ยง ---------- */
+  let breaks = null, breakDraft = { breakStart: '', from: '', to: '', note: '' };
+  const clockText = v => String(v || '').replace(':', '.');
+  const breakRange = v => { const p = String(v || '').split(':').map(Number); if (p.length !== 2) return '-'; const pad = n => String(n).padStart(2, '0'); return `${pad(p[0])}.${pad(p[1])}–${pad(p[0] + 1)}.${pad(p[1])}`; };
+
+  async function loadBreaks() {
+    $('breakBox').innerHTML = '<div class="loading">กำลังโหลด...</div>';
+    try { breaks = await post({ action: 'MAINT_GET_BREAKS' }); renderBreaks(); }
+    catch (err) { $('breakBox').innerHTML = `<div class="empty" style="color:#b91c1c">โหลดไม่สำเร็จ: ${esc(err.message)}</div>`; }
+  }
+
+  function renderGridPreview(b) {
+    const pv = (breaks.previews || {})[b];
+    if (!pv) return '';
+    return `<div class="grid-cols">${[8, 9, 10, 11].map(h => `<div class="grid-col"><b>${h} ชม. <span class="pending">${h === 8 ? 'เข้า 08.30' : 'เข้า 08.00'}</span></b>
+      ${pv[h].map(x => x.isBreak ? `<div class="brk">${x.slot} พัก</div>` : `<div>${x.slot}${x.hours !== 1 ? ` <span class="len odd">${x.hours}</span>` : ''}</div>`).join('')}</div>`).join('')}</div>`;
+  }
+
+  function renderBreaks() {
+    const b = breaks;
+    const tomorrow = addDays(b.today, 1);
+    const rows = b.schedules.map(r => {
+      const tag = r.future ? '<span class="tag future">รอเริ่มใช้</span>' : r.ended ? '<span class="tag ended">หมดช่วงแล้ว</span>' : '<span class="tag active">ใช้อยู่</span>';
+      return `<tr><td>${thaiDate(r.from)} – ${r.to ? thaiDate(r.to) : 'ไม่กำหนด'}</td><td><b>${breakRange(r.breakStart)}</b></td><td>${esc(r.note || '')}</td><td>${tag}</td>
+        <td>${r.future ? `<button class="btn danger" onclick="deleteBreak('${r.from}')">ยกเลิก</button>` : ''}</td></tr>`;
+    }).join('') || `<tr><td colspan="5" class="pending">ยังไม่มีรายการ — ใช้รอบหลัก ${breakRange(b.baseBreak)}</td></tr>`;
+    const d = breakDraft;
+    const ready = d.breakStart && d.from && d.from >= tomorrow && (!d.to || d.to >= d.from);
+    $('breakBox').innerHTML = `
+      <div class="grid2">
+        <div>
+          <div class="card">
+            <div class="now-box"><b>วันนี้พัก</b><span class="t">${breakRange(b.todayBreak)}</span></div>
+            <div class="sub">14 วันข้างหน้า</div>
+            <div class="days">${b.upcoming.map((u, i) => `<div class="day ${i > 0 && u.breakStart !== b.upcoming[i - 1].breakStart ? 'changed' : ''}">${thaiDate(u.date, { year: undefined, month: 'short' })}<b>${clockText(u.breakStart)}</b></div>`).join('')}</div>
+          </div>
+          <div class="card">
+            <h3>รายการรอบพัก</h3>
+            <table><thead><tr><th>ช่วงวันที่</th><th>พักเที่ยง</th><th>หมายเหตุ</th><th>สถานะ</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <h3>ตั้งรอบพักใหม่</h3>
+          <div class="chips" style="--n:3">${b.allowed.map(v => `<button class="chip ${d.breakStart === v ? 'on' : ''}" onclick="editBreakDraft('breakStart','${v}')">${clockText(v)}<small>${breakRange(v)}</small></button>`).join('')}</div>
+          <div class="row-inline" style="margin-top:10px">
+            <div style="flex:1"><div class="sub" style="margin-top:0">ตั้งแต่วันที่</div><input type="date" class="inp" min="${tomorrow}" value="${d.from}" onchange="editBreakDraft('from',this.value)"></div>
+            <div style="flex:1"><div class="sub" style="margin-top:0">ถึงวันที่ <span class="pending">(ไม่ใส่ = ไม่กำหนด)</span></div><input type="date" class="inp" min="${d.from || tomorrow}" value="${d.to}" onchange="editBreakDraft('to',this.value)"></div>
+          </div>
+          <div class="sub">หมายเหตุ</div><input class="inp" id="breakNote" maxlength="80" value="${esc(d.note)}" placeholder="เช่น รอบ ม.ค.–มี.ค." oninput="breakDraft.note=this.value">
+          ${d.to && d.from && d.to < d.from ? '<div class="warn">วันสิ้นสุดต้องไม่ก่อนวันเริ่ม</div>' : ''}
+          ${d.from && d.from < tomorrow ? '<div class="warn">ตั้งได้ตั้งแต่พรุ่งนี้เป็นต้นไป</div>' : ''}
+          <button class="btn full" style="margin-top:12px" ${ready ? '' : 'disabled'} onclick="saveBreak()">${ready ? `ตั้งพัก ${breakRange(d.breakStart)} • ${thaiDate(d.from)} – ${d.to ? thaiDate(d.to) : 'ไม่กำหนด'}` : 'เลือกรอบพักและวันที่'}</button>
+          ${d.breakStart ? `<div class="sub" style="margin-top:16px">ช่องเวลาเมื่อพัก ${breakRange(d.breakStart)}</div>${renderGridPreview(d.breakStart)}` : '<div class="help">เลือกรอบพักเพื่อดูช่องเวลาของแต่ละชั่วโมงทำงาน</div>'}
+        </div>
+      </div>`;
+  }
+  function editBreakDraft(key, value) {
+    breakDraft = Object.assign({}, breakDraft, { [key]: value, note: $('breakNote') ? $('breakNote').value : breakDraft.note });
+    renderBreaks();
+  }
+  async function saveBreak() {
+    const d = breakDraft;
+    if (!confirm(`ตั้งรอบพักเที่ยง ${breakRange(d.breakStart)}\n${thaiDate(d.from)} – ${d.to ? thaiDate(d.to) : 'ไม่กำหนด'}\n\nใช้กับทุกไลน์ในโรง 2`)) return;
+    const r = await act(() => post({ action: 'MAINT_ADD_BREAK', breakStart: d.breakStart, from: d.from, to: d.to || '', note: d.note || '' }), 'ตั้งรอบพักแล้ว');
+    if (r) { breaks = r; breakDraft = { breakStart: '', from: '', to: '', note: '' }; renderBreaks(); }
+  }
+  async function deleteBreak(from) {
+    if (!confirm(`ยกเลิกรอบพักที่จะเริ่ม ${thaiDate(from)}?`)) return;
+    const r = await act(() => post({ action: 'MAINT_DELETE_BREAK', from: from }), 'ยกเลิกแล้ว');
+    if (r) { breaks = r; renderBreaks(); }
   }
 
   /* ---------- ประวัติ ---------- */

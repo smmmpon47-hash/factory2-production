@@ -1312,15 +1312,42 @@
     { label: "19.30-20.30", endMin: 1230 }
   ];
 
-  const V2_LUNCH_SLOT = '12.00-13.00';
-  const V2_EVENING_SLOT = '17.30-18.00';
-  const V2_BASE_0800 = ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00"];
-  const V2_WORKING_SLOTS = {
-    8: ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.30"],
-    9: V2_BASE_0800.concat(["17.00-18.00"]),
-    10: V2_BASE_0800.concat(["17.00-18.00","18.00-19.00"]),
-    11: V2_BASE_0800.concat(["17.00-17.30","18.00-19.00","19.00-20.00","20.00-20.30"])
-  };
+  const V2_EVENING_SLOT = '17.30-18.00'; // พักเย็นเฉพาะ 11 ชม.
+  // V16: รอบพักเที่ยงมาจาก Apps Script (ตั้งในหน้าแอดมิน) — ค่าเริ่มต้น 12.00
+  let V2_BREAK_START = '12:00';
+  let V2_LUNCH_SLOT = '12.00-13.00';
+
+  // กฎเดียวกับ Apps Script buildV2Grid_
+  function buildV2Grid_(hours, breakStart) {
+    const pad = n => String(n).padStart(2, '0');
+    const lbl = (a, b) => `${pad(Math.floor(a / 60))}.${pad(a % 60)}-${pad(Math.floor(b / 60))}.${pad(b % 60)}`;
+    const bs = String(breakStart || '12:00').replace('.', ':').split(':');
+    const L = (Number(bs[0]) || 12) * 60 + (Number(bs[1]) || 0);
+    const working = [];
+    const fill = (from, to, mergeTail) => {
+      let t = from;
+      while (t < to) {
+        let e = Math.min(t + 60, to);
+        if (mergeTail && to - e > 0 && to - e < 60) e = to;
+        working.push(lbl(t, e));
+        t = e;
+      }
+    };
+    if (hours === 8) { fill(510, L, false); fill(L + 60, 1050, true); }
+    else {
+      fill(480, L, false);
+      if (hours === 11) { fill(L + 60, 1050, false); fill(1080, 1230, false); }
+      else fill(L + 60, 480 + hours * 60 + 60, false);
+    }
+    const breaks = [lbl(L, L + 60)];
+    if (hours === 11) breaks.push(V2_EVENING_SLOT);
+    return { working, breaks };
+  }
+
+  function v2Working_(hours) {
+    const h = Math.floor(Number(hours) || 0);
+    return [8, 9, 10, 11].includes(h) ? buildV2Grid_(h, V2_BREAK_START).working : [];
+  }
 
   function slotMinutes_(label) {
     const toMin = t => { const x = String(t || '').split('.'); return (Number(x[0]) || 0) * 60 + (Number(x[1]) || 0); };
@@ -1355,14 +1382,16 @@
     return items;
   }
 
-  const V2_TIME_SLOTS_DEF = (() => {
+  function buildV2TimeSlotsDef_() {
     const set = {};
-    Object.values(V2_WORKING_SLOTS).forEach(list => list.forEach(x => { set[x] = 1; }));
-    set[V2_LUNCH_SLOT] = 1; set[V2_EVENING_SLOT] = 1;
+    [8, 9, 10, 11].forEach(h => {
+      const g = buildV2Grid_(h, V2_BREAK_START);
+      g.working.concat(g.breaks).forEach(x => { set[x] = 1; });
+    });
     return Object.keys(set)
       .map(label => ({ label, startMin: slotMinutes_(label).start, endMin: slotMinutes_(label).end }))
       .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
-  })();
+  }
 
   function todayBangkok_() {
     try {
@@ -1374,7 +1403,17 @@
   }
 
   const SCHEDULE_IS_V2 = todayBangkok_() >= SCHEDULE_V2_START_DATE;
-  const TIME_SLOTS_DEF = SCHEDULE_IS_V2 ? V2_TIME_SLOTS_DEF : V1_TIME_SLOTS_DEF;
+  let TIME_SLOTS_DEF = SCHEDULE_IS_V2 ? buildV2TimeSlotsDef_() : V1_TIME_SLOTS_DEF;
+
+  // V16: ตั้งรอบพักเที่ยงของวันนี้ตามที่ Apps Script ส่งมา
+  function applyServerSchedule_(schedule) {
+    if (!SCHEDULE_IS_V2 || !schedule || !schedule.breakStart) return;
+    const next = String(schedule.breakStart);
+    if (next === V2_BREAK_START) return;
+    V2_BREAK_START = next;
+    V2_LUNCH_SLOT = buildV2Grid_(8, next).breaks[0];
+    TIME_SLOTS_DEF = buildV2TimeSlotsDef_();
+  }
 
   // ช่วงพักของวันนี้ตามชั่วโมงทำงาน
   // ใหม่: 12.00-13.00 เสมอ • 17.30-18.00 เฉพาะ 11 ชม.
@@ -1819,6 +1858,7 @@
       });
 
       masterLotMap = data.masterMap || {};
+      applyServerSchedule_(data.schedule);
 
       const authoritativeAAHours = Math.floor(Number(data.totalWorkingHoursAA || data.totalWorkingHours) || 0);
       if (!WORKING_HOURS_OPTIONS.includes(authoritativeAAHours)) {
@@ -2360,7 +2400,7 @@
     const hours = Math.max(0, Math.floor(Number(totalHours) || 0));
 
     if (SCHEDULE_IS_V2) {
-      const labels = V2_WORKING_SLOTS[hours] || [];
+      const labels = v2Working_(hours);
       return labels
         .map(label => TIME_SLOTS_DEF.find(slot => slot.label === label))
         .filter(Boolean);
