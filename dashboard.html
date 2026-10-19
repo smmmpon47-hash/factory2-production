@@ -412,9 +412,17 @@ var V2_GRIDS = {
     breaks: { 8: ["12.00-13.00"], 9: ["12.00-13.00"], 10: ["12.00-13.00"], 11: ["12.00-13.00","17.30-18.00"] }
   }
 };
+// คืนรายการ key ของตารางที่ใช้วันนั้น
 function registerSchedule_(sch){
-  if(sch&&sch.breakStart&&sch.workingSlotsByHours&&sch.breakSlotsByHours)
+  if(!sch)return [];
+  if(sch.v3&&sch.grids){
+    return Object.keys(sch.grids).map(function(st){var k="v3|"+st;V2_GRIDS[k]=sch.grids[st];return k});
+  }
+  if(sch.breakStart&&sch.workingSlotsByHours&&sch.breakSlotsByHours){
     V2_GRIDS[sch.breakStart]={working:sch.workingSlotsByHours,breaks:sch.breakSlotsByHours};
+    return [sch.breakStart];
+  }
+  return [];
 }
 function buildV2Grid_(hours,breakStart){
   var t=V2_GRIDS[breakStart]||V2_GRIDS["12:00"];
@@ -426,7 +434,7 @@ function v2AllSlots_(){
   V2_BREAK_STARTS.forEach(function(b){[8,9,10,11].forEach(function(h){var g=buildV2Grid_(h,b);g.working.concat(g.breaks).forEach(function(x){set[x]=1})})});
   return Object.keys(set).sort(compareSlot_);
 }
-function v2LunchSlots_(){return V2_BREAK_STARTS.map(function(b){return buildV2Grid_(8,b).breaks[0]})}
+function v2LunchSlots_(){return V2_BREAK_STARTS.map(function(b){return buildV2Grid_(8,b).breaks[0]}).filter(Boolean)}
 function compareSlot_(a,b){return slotStartMin_(a)-slotStartMin_(b)||slotEndMinutes(a)-slotEndMinutes(b)}
 // ความยาวช่อง (ชม.) จากป้ายเวลา เช่น 16.00-17.30 = 1.5
 function slotHoursOf(slot){var h=(slotEndMinutes(slot)-slotStartMin_(slot))/60;return h>0?h:1}
@@ -825,7 +833,7 @@ function blankLine(code){
 
 function mergeRange(payloads,from,to){
   var bsSet={};
-  (payloads||[]).forEach(function(d){if(d&&d.schedule&&d.schedule.breakStart){registerSchedule_(d.schedule);bsSet[d.schedule.breakStart]=1}});
+  (payloads||[]).forEach(function(d){registerSchedule_(d&&d.schedule).forEach(function(k){bsSet[k]=1})});
   applySchedule_(from,to,Object.keys(bsSet));
   var map={};
   LINE_CODES.forEach(function(c){map[c]=blankLine(c)});
@@ -925,9 +933,7 @@ async function loadDashboard(showLoading){
 }
 
 function renderAll(){
-  if(!dashboardData.isRange) registerSchedule_(dashboardData.schedule);
-  if(!dashboardData.isRange) applySchedule_(dashboardData.date||currentRange.from,null,
-    dashboardData.schedule&&dashboardData.schedule.breakStart?[dashboardData.schedule.breakStart]:null);
+  if(!dashboardData.isRange) applySchedule_(dashboardData.date||currentRange.from,null,registerSchedule_(dashboardData.schedule));
   var lines=Array.isArray(dashboardData.lines)?dashboardData.lines:[];
   var totalTarget=lines.reduce(function(s,d){return s+num(d.target)},0);
   var totalActual=lines.reduce(function(s,d){return s+num(d.actual)},0);

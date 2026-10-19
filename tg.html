@@ -160,6 +160,11 @@
       font-weight:700;
       cursor:pointer;
     }
+    .start-btn-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:7px}
+    .btn-start{min-height:50px;border:1.8px solid #cbd5e1;border-radius:14px;background:#fff;color:#334155;font-size:1.04rem;font-weight:700;cursor:pointer;line-height:1.2}
+    .btn-start small{display:block;font-size:.72rem;font-weight:600;opacity:.8}
+    .btn-start.active{background:#0d9488;color:#fff;border-color:#0d9488;box-shadow:0 4px 12px rgba(13,148,136,.25)}
+    .start-hint{margin-top:6px;font-size:.78rem;color:#64748b}
     .btn-hour.active{
       background:#0d9488;
       color:#fff;
@@ -335,6 +340,15 @@
             <div id="manualRateHint" class="type-hint warn"></div>
           </div>
         </div>
+      </div>
+
+      <div class="form-group" id="startTimeGroup" style="display:none">
+        <label>เวลาเข้างาน</label>
+        <div class="start-btn-group">
+          <button type="button" class="btn-start" data-start="08:00">08.00<small>มี OT เช้า</small></button>
+          <button type="button" class="btn-start" data-start="08:30">08.30<small>เข้าปกติ</small></button>
+        </div>
+        <div class="start-hint" id="startHint">ระบบเลือกให้ตามชั่วโมงทำงาน กดเปลี่ยนได้</div>
       </div>
 
       <div class="form-group">
@@ -527,16 +541,51 @@
       : `ค่าเริ่มต้น ${formatNumber(type.rate)} ตัว/ชม. • แก้ให้ตรงรุ่น (${RATE_MIN}–${RATE_MAX})`;
   }
 
-  // V15: ตั้งแต่ 19/10/2026 — 8 ชม. เข้า 08.30 / 9–11 ชม. (มี OT) เข้า 08.00
-  function startTimeNote_(hours) {
-    let today = "";
+  // V17: ตั้งแต่ 20/10/2026 — เลือกเวลาเข้างาน 08.00 / 08.30 เอง
+  // ค่าเริ่มต้น: 8 ชม. = 08.30 • มี OT = 08.00 (ถ้าผู้ใช้กดเลือกเอง จะไม่เปลี่ยนตามชั่วโมงอีก)
+  var START_TIME_FROM = "2026-10-20";
+  var startTimePicked = "";
+
+  function todayBangkokTG_() {
     try {
-      today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     } catch (e) {
-      today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+      return new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
     }
-    if (today < "2026-10-19") return "";
-    return hours > 8 ? " • เข้างาน 08.00 (มี OT)" : " • เข้างาน 08.30";
+  }
+
+  function startTimeEnabled_() { return todayBangkokTG_() >= START_TIME_FROM; }
+
+  function currentStartTime_() {
+    if (!startTimeEnabled_()) return "";
+    const hours = Number(document.getElementById("selectedHours").value) || 8;
+    return startTimePicked || (hours > 8 ? "08:00" : "08:30");
+  }
+
+  function syncStartButtons_() {
+    const group = document.getElementById("startTimeGroup");
+    if (!startTimeEnabled_()) { group.style.display = "none"; return; }
+    group.style.display = "block";
+    const st = currentStartTime_();
+    document.querySelectorAll(".btn-start").forEach(b => b.classList.toggle("active", b.dataset.start === st));
+    document.getElementById("startHint").textContent = startTimePicked
+      ? "เลือกเวลาเข้างานเองแล้ว"
+      : "ระบบเลือกให้ตามชั่วโมงทำงาน (8 ชม. = 08.30 / มี OT = 08.00) กดเปลี่ยนได้";
+  }
+
+  document.querySelectorAll(".btn-start").forEach(btn => {
+    btn.addEventListener("click", () => {
+      startTimePicked = btn.dataset.start;
+      updateTarget();
+    });
+  });
+
+  function startTimeNote_(hours) {
+    const st = currentStartTime_();
+    if (st) return ` • เข้า ${st.replace(":", ".")}`;
+    // 19/10 (ตาราง V15): 8 ชม. เข้า 08.30 / มี OT เข้า 08.00
+    if (todayBangkokTG_() >= "2026-10-19") return hours > 8 ? " • เข้างาน 08.00 (มี OT)" : " • เข้างาน 08.30";
+    return "";
   }
 
   function getEffectiveRate_() {
@@ -547,6 +596,7 @@
 
   function updateTarget() {
     const hours = Number(document.getElementById("selectedHours").value) || 8;
+    syncStartButtons_();
     const type = getSelectedType_();
     syncManualRate_();
     const rate = getEffectiveRate_();
@@ -841,6 +891,7 @@
       productType,
       productRate,
       workingHours,
+      startTime: currentStartTime_(),
       updatedBy: userDisplayName
     };
 
@@ -854,7 +905,7 @@
 
       if (result.status === "success") {
         alert(
-          `บันทึกเรียบร้อย\nLINE ${line}\nLOT ${lot}\nประเภท ${result.productType || productType} (${formatNumber(result.ratePerHour)} ตัว/ชม.)\nเป้าหมาย ${formatNumber(result.target)} ตัว`
+          `บันทึกเรียบร้อย\nLINE ${line}${result.startTime ? ' • เข้า ' + result.startTime.replace(':', '.') : ''}\nLOT ${lot}\nประเภท ${result.productType || productType} (${formatNumber(result.ratePerHour)} ตัว/ชม.)\nเป้าหมาย ${formatNumber(result.target)} ตัว`
         );
 
         if (
