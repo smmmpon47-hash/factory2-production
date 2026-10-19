@@ -739,7 +739,10 @@ ${lines.join('\n')}`)) return;
         </div>
         <div class="card">
           <h3>ตั้งรอบพักใหม่</h3>
-          <div class="chips" style="--n:3">${b.allowed.map(v => `<button class="chip ${d.breakStart === v ? 'on' : ''}" onclick="editBreakDraft('breakStart','${v}')">${clockText(v)}<small>${breakRange(v)}</small></button>`).join('')}</div>
+          <div class="chips" style="--n:3">${(b.all || b.allowed).map(v => b.allowed.includes(v)
+            ? `<button class="chip ${d.breakStart === v ? 'on' : ''}" onclick="editBreakDraft('breakStart','${v}')">${clockText(v)}<small>${breakRange(v)}</small></button>`
+            : `<button class="chip" disabled style="opacity:.5;cursor:not-allowed">${clockText(v)}<small>รอตารางเวลา</small></button>`).join('')}</div>
+          ${(b.all || []).some(v => !b.allowed.includes(v)) ? '<div class="help">รอบพักที่ยังไม่มีตารางเวลา (OT เช้า / พักเย็น) จะตั้งได้หลังเพิ่มตารางในระบบ</div>' : ''}
           <div class="row-inline" style="margin-top:10px">
             <div style="flex:1"><div class="sub" style="margin-top:0">ตั้งแต่วันที่</div><input type="date" class="inp" min="${tomorrow}" value="${d.from}" onchange="editBreakDraft('from',this.value)"></div>
             <div style="flex:1"><div class="sub" style="margin-top:0">ถึงวันที่ <span class="pending">(ไม่ใส่ = ไม่กำหนด)</span></div><input type="date" class="inp" min="${d.from || tomorrow}" value="${d.to}" onchange="editBreakDraft('to',this.value)"></div>

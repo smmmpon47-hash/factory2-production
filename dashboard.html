@@ -400,18 +400,26 @@ var V1_TIME_SLOTS = ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.30","12
 var V2_EVENING = "17.30-18.00"; // พักเย็นเฉพาะ 11 ชม.
 // V16: รอบพักเที่ยงมาจาก Apps Script (schedule.breakStart) — ค่าเริ่มต้น 12.00
 var V2_BREAK_STARTS = ["12:00"];
-// กฎเดียวกับ Apps Script buildV2Grid_
+// ตารางช่องเวลาตามรอบพัก — ค่าจริงมาจาก Apps Script (schedule.workingSlotsByHours / breakSlotsByHours)
+var V2_GRIDS = {
+  "12:00": {
+    working: {
+      8: ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.30"],
+      9: ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00","17.00-18.00"],
+      10: ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00","17.00-18.00","18.00-19.00"],
+      11: ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00","17.00-17.30","18.00-19.00","19.00-20.00","20.00-20.30"]
+    },
+    breaks: { 8: ["12.00-13.00"], 9: ["12.00-13.00"], 10: ["12.00-13.00"], 11: ["12.00-13.00","17.30-18.00"] }
+  }
+};
+function registerSchedule_(sch){
+  if(sch&&sch.breakStart&&sch.workingSlotsByHours&&sch.breakSlotsByHours)
+    V2_GRIDS[sch.breakStart]={working:sch.workingSlotsByHours,breaks:sch.breakSlotsByHours};
+}
 function buildV2Grid_(hours,breakStart){
-  function pad(n){return String(n).padStart(2,"0")}
-  function lbl(a,b){return pad(Math.floor(a/60))+"."+pad(a%60)+"-"+pad(Math.floor(b/60))+"."+pad(b%60)}
-  var bs=String(breakStart||"12:00").replace(".",":").split(":");
-  var L=(Number(bs[0])||12)*60+(Number(bs[1])||0), working=[];
-  function fill(from,to,mergeTail){var t=from;while(t<to){var e=Math.min(t+60,to);if(mergeTail&&to-e>0&&to-e<60)e=to;working.push(lbl(t,e));t=e}}
-  if(hours===8){fill(510,L,false);fill(L+60,1050,true)}
-  else{fill(480,L,false);if(hours===11){fill(L+60,1050,false);fill(1080,1230,false)}else fill(L+60,480+hours*60+60,false)}
-  var breaks=[lbl(L,L+60)];
-  if(hours===11)breaks.push(V2_EVENING);
-  return {working:working,breaks:breaks};
+  var t=V2_GRIDS[breakStart]||V2_GRIDS["12:00"];
+  var h=t.working[hours]?hours:8;
+  return {working:t.working[h].slice(),breaks:(t.breaks[h]||[]).slice()};
 }
 function v2AllSlots_(){
   var set={};
@@ -817,7 +825,7 @@ function blankLine(code){
 
 function mergeRange(payloads,from,to){
   var bsSet={};
-  (payloads||[]).forEach(function(d){if(d&&d.schedule&&d.schedule.breakStart)bsSet[d.schedule.breakStart]=1});
+  (payloads||[]).forEach(function(d){if(d&&d.schedule&&d.schedule.breakStart){registerSchedule_(d.schedule);bsSet[d.schedule.breakStart]=1}});
   applySchedule_(from,to,Object.keys(bsSet));
   var map={};
   LINE_CODES.forEach(function(c){map[c]=blankLine(c)});
@@ -917,6 +925,7 @@ async function loadDashboard(showLoading){
 }
 
 function renderAll(){
+  if(!dashboardData.isRange) registerSchedule_(dashboardData.schedule);
   if(!dashboardData.isRange) applySchedule_(dashboardData.date||currentRange.from,null,
     dashboardData.schedule&&dashboardData.schedule.breakStart?[dashboardData.schedule.breakStart]:null);
   var lines=Array.isArray(dashboardData.lines)?dashboardData.lines:[];

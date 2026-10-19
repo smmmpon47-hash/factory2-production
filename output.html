@@ -1317,31 +1317,24 @@
   let V2_BREAK_START = '12:00';
   let V2_LUNCH_SLOT = '12.00-13.00';
 
-  // กฎเดียวกับ Apps Script buildV2Grid_
-  function buildV2Grid_(hours, breakStart) {
-    const pad = n => String(n).padStart(2, '0');
-    const lbl = (a, b) => `${pad(Math.floor(a / 60))}.${pad(a % 60)}-${pad(Math.floor(b / 60))}.${pad(b % 60)}`;
-    const bs = String(breakStart || '12:00').replace('.', ':').split(':');
-    const L = (Number(bs[0]) || 12) * 60 + (Number(bs[1]) || 0);
-    const working = [];
-    const fill = (from, to, mergeTail) => {
-      let t = from;
-      while (t < to) {
-        let e = Math.min(t + 60, to);
-        if (mergeTail && to - e > 0 && to - e < 60) e = to;
-        working.push(lbl(t, e));
-        t = e;
-      }
-    };
-    if (hours === 8) { fill(510, L, false); fill(L + 60, 1050, true); }
-    else {
-      fill(480, L, false);
-      if (hours === 11) { fill(L + 60, 1050, false); fill(1080, 1230, false); }
-      else fill(L + 60, 480 + hours * 60 + 60, false);
+  // ตารางช่องเวลาตามรอบพัก — ค่าจริงมาจาก Apps Script (schedule.workingSlotsByHours / breakSlotsByHours)
+  // ตัวนี้เป็นค่าสำรองของรอบ 12.00 ก่อนโหลดข้อมูล
+  const V2_GRIDS = {
+    "12:00": {
+      working: {
+        8: ["08.30-09.30","09.30-10.30","10.30-11.30","11.30-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.30"],
+        9: ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00","17.00-18.00"],
+        10: ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00","17.00-18.00","18.00-19.00"],
+        11: ["08.00-09.00","09.00-10.00","10.00-11.00","11.00-12.00","13.00-14.00","14.00-15.00","15.00-16.00","16.00-17.00","17.00-17.30","18.00-19.00","19.00-20.00","20.00-20.30"]
+      },
+      breaks: { 8: ["12.00-13.00"], 9: ["12.00-13.00"], 10: ["12.00-13.00"], 11: ["12.00-13.00","17.30-18.00"] }
     }
-    const breaks = [lbl(L, L + 60)];
-    if (hours === 11) breaks.push(V2_EVENING_SLOT);
-    return { working, breaks };
+  };
+
+  function buildV2Grid_(hours, breakStart) {
+    const table = V2_GRIDS[breakStart] || V2_GRIDS['12:00'];
+    const h = table.working[hours] ? hours : 8;
+    return { working: table.working[h].slice(), breaks: (table.breaks[h] || []).slice() };
   }
 
   function v2Working_(hours) {
@@ -1409,7 +1402,10 @@
   function applyServerSchedule_(schedule) {
     if (!SCHEDULE_IS_V2 || !schedule || !schedule.breakStart) return;
     const next = String(schedule.breakStart);
-    if (next === V2_BREAK_START) return;
+    if (schedule.workingSlotsByHours && schedule.breakSlotsByHours) {
+      V2_GRIDS[next] = { working: schedule.workingSlotsByHours, breaks: schedule.breakSlotsByHours };
+    }
+    if (next === V2_BREAK_START && V2_GRIDS[next]) { TIME_SLOTS_DEF = buildV2TimeSlotsDef_(); return; }
     V2_BREAK_START = next;
     V2_LUNCH_SLOT = buildV2Grid_(8, next).breaks[0];
     TIME_SLOTS_DEF = buildV2TimeSlotsDef_();
