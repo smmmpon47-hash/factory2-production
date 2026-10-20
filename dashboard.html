@@ -47,6 +47,26 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
 @media(max-width:640px){
   .lineCard{min-height:0}
 }
+/* ---------- floor plan (แบบเดียวกับ Dashboard โรง 1) ---------- */
+.floorLayout{display:grid;grid-template-columns:minmax(0,3.2fr) minmax(260px,1fr);gap:16px;align-items:stretch}
+.floorMain{min-width:0;padding:20px;border:1px solid #E2E8F0;border-radius:24px;background:#fff}
+.planWrap{position:relative;width:100%;aspect-ratio:1394 / 472;border-radius:16px;overflow:hidden;background:#22303F;border:1px solid #DCE4EE;box-shadow:0 18px 36px -28px rgba(15,23,42,.65)}
+.planCanvas{position:absolute;inset:0}
+.planImg{display:block;width:100%;height:100%;object-fit:contain}
+.guideColumn{min-width:0;display:flex;flex-direction:column;gap:10px;align-self:start}
+.guideTitle{min-height:44px;padding:8px 16px;display:flex;align-items:center;justify-content:center;border:1px solid #E2E8F0;border-radius:20px;background:#fff;font-size:14px;font-weight:800;color:#0F172A}
+.lineShortcutBody{padding:10px;border:1px solid #E2E8F0;border-radius:20px;background:#fff;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.guideBody{padding:14px 18px;border:1px solid #E2E8F0;border-radius:20px;background:#fff}
+.guideStep{display:flex;align-items:flex-start;gap:10px}
+.guideNo{width:24px;height:24px;flex:0 0 24px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#4338CA;background:#EEF2FF;font-size:12px;font-weight:800}
+.hot{position:absolute;border-radius:8px;cursor:pointer;border:2px solid transparent;background:transparent;display:flex;align-items:center;justify-content:center;transition:background .22s cubic-bezier(0.22,1,0.36,1),border-color .22s cubic-bezier(0.22,1,0.36,1),box-shadow .22s cubic-bezier(0.22,1,0.36,1),transform .22s cubic-bezier(0.22,1,0.36,1)}
+.hot:hover,.hot.is-active{background:rgba(217,155,43,.48);border-color:#C68400;box-shadow:0 10px 24px -10px rgba(120,78,0,.55),0 0 0 3px rgba(255,255,255,.38);transform:translateY(-2px)}
+.hot .hotLabel{font-size:11px;font-weight:700;color:#fff;background:rgba(120,78,0,.90);padding:3px 9px;border-radius:999px;opacity:0;transform:translateY(4px);transition:.18s ease;white-space:nowrap}
+.hot:hover .hotLabel,.hot.is-active .hotLabel{opacity:1;transform:translateY(0)}
+.hotDot{position:absolute;top:4px;right:4px;width:9px;height:9px;border-radius:999px;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.25)}
+#planTip{position:absolute;z-index:30;width:230px;pointer-events:none;background:#fff;border-radius:16px;padding:14px;box-shadow:0 18px 40px -16px rgba(2,8,23,.55);opacity:0;transform:scale(.96);transition:opacity .14s ease,transform .14s ease}
+#planTip.show{opacity:1;transform:scale(1)}
+@media (max-width:1023px){.floorLayout{grid-template-columns:1fr}.lineShortcutBody{grid-template-columns:repeat(3,1fr)}}
 </style>
 </head>
 <body class="pb-10">
@@ -178,11 +198,53 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
       <h2 class="font-bold text-slate-800">รายละเอียดแยกตามไลน์ และ LOT</h2>
       <p class="text-[11px] text-slate-400">เทียบเป้าต่อวัน กับ เป้า ณ เวลานี้</p>
     </div>
-    <div class="mb-3">
-      <p class="text-[11px] text-slate-400 font-semibold mb-1.5">เลือกไลน์เพื่อดูรายละเอียด</p>
-      <div id="lineSelector" class="grid grid-cols-3 sm:grid-cols-6 gap-2"></div>
-    </div>
     <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3"></div>
+  </section>
+
+  <!-- ======================= FLOOR PLAN (แบบโรง 1) ======================= -->
+  <section class="mt-5">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
+      <div>
+        <h2 class="font-bold text-slate-800">ผังไลน์การผลิต</h2>
+        <p class="text-xs text-slate-400">ชี้ที่ไลน์เพื่อดูยอดย่อ คลิกเพื่อเปิดรายละเอียดทั้งหมด</p>
+      </div>
+    </div>
+    <div class="floorLayout">
+      <div class="floorMain soft">
+        <div id="planWrap" class="planWrap">
+          <div class="planCanvas">
+            <img class="planImg" src="floor2.jpg" alt="ผังไลน์การผลิต โรง 2">
+            <div id="hotspots"></div>
+          </div>
+          <div id="planTip">
+            <div class="flex items-center justify-between gap-2">
+              <p id="tipLine" class="font-extrabold text-slate-800">LINE 201</p>
+              <span id="tipStatus" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">-</span>
+            </div>
+            <p id="tipModel" class="text-[11px] text-slate-400 mb-2">-</p>
+            <div class="space-y-1 text-xs">
+              <div class="flex justify-between"><span class="text-slate-500">เป้าหมาย</span><span id="tipTarget" class="font-bold text-slate-800">-</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">เป้า ณ ตอนนี้</span><span id="tipTargetNow" class="font-bold text-slate-800">-</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">ผลิตแล้ว</span><span id="tipActual" class="font-bold text-slate-800">-</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">คืบหน้า</span><span id="tipPct" class="font-bold text-slate-800">-</span></div>
+            </div>
+            <div class="mt-2 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div id="tipBar" class="h-1.5 rounded-full bg-emerald-500" style="width:0%"></div>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-2">คลิกเพื่อดูรายละเอียดไลน์</p>
+          </div>
+        </div>
+      </div>
+      <aside class="guideColumn" aria-label="ข้อมูลประกอบผังไลน์การผลิต">
+        <div class="guideTitle soft">ไลน์ทั้งหมด</div>
+        <div id="lineSelector" class="lineShortcutBody soft"></div>
+        <div class="guideTitle soft">วิธีใช้งาน</div>
+        <div class="guideBody soft space-y-3">
+          <div class="guideStep"><span class="guideNo">1</span><div><p class="text-xs font-bold text-slate-700">ดูข้อมูลแบบย่อ</p><p class="text-[10px] text-slate-400 mt-0.5">วางเมาส์บน LINE เพื่อดูภาพรวมการผลิต จุดสีมุมกรอบคือสถานะ</p></div></div>
+          <div class="guideStep"><span class="guideNo">2</span><div><p class="text-xs font-bold text-slate-700">ดูรายละเอียดเพิ่มเติม</p><p class="text-[10px] text-slate-400 mt-0.5">คลิก LINE ในผัง หรือปุ่มด้านบน เพื่อเปิดข้อมูลทั้งหมด</p></div></div>
+        </div>
+      </aside>
+    </div>
   </section>
 
   <!-- ======================= LINE DETAIL ======================= -->
@@ -1122,6 +1184,7 @@ function renderCards(lines){
 
 // V13: แถบเลือกไลน์ — จุดสีตามสถานะ + % คืบหน้า จิ้มแล้วเปิดรายละเอียด
 function renderLineSelector(lines){
+  renderHotspots();
   var wrap=el("lineSelector");
   if(!wrap)return;
   var dateStr=dashboardData.date||currentRange.from;
@@ -1137,6 +1200,82 @@ function renderLineSelector(lines){
       '</button>';
   }).join("");
 }
+
+/* ======================= FLOOR PLAN (แบบโรง 1) ======================= */
+// ตำแหน่งกรอบไลน์บนรูป floor2.jpg (หน่วย % ของรูป 1394×472)
+var FLOOR_LINES = [
+  { code:"202", left:46.2, top:16.0, width:10.5, height:12.0 },
+  { code:"204", left:57.4, top:16.0, width:12.1, height:12.0 },
+  { code:"201", left:70.1, top:16.0, width:12.1, height:12.0 },
+  { code:"205", left:46.2, top:29.0, width:10.5, height:12.0 },
+  { code:"203", left:57.4, top:29.0, width:12.1, height:12.0 },
+  { code:"206", left:70.1, top:29.0, width:12.1, height:12.0 }
+];
+var STATUS_DOT={ok:"#10B981",warn:"#F59E0B",bad:"#F43F5E",idle:"#CBD5E1"};
+
+function lineItemOf_(code){
+  return ((dashboardData&&dashboardData.lines)||[]).find(function(x){return String(x.line)===String(code)})||{line:code};
+}
+function lineStatusOf_(item){
+  var dateStr=dashboardData.date||currentRange.from;
+  return dashboardData.isRange?{key:num(item.target)?"ok":"idle",label:num(item.target)?"มีข้อมูล":"ยังไม่ตั้งเป้า"}:lineStatus(item,dateStr);
+}
+
+function renderHotspots(){
+  var wrap=el("hotspots");
+  if(!wrap)return;
+  wrap.innerHTML="";
+  FLOOR_LINES.forEach(function(cfg){
+    var item=lineItemOf_(cfg.code);
+    var st=lineStatusOf_(item);
+    var d=document.createElement("div");
+    d.className="hot"+(String(selectedLine)===cfg.code?" is-active":"");
+    d.style.left=cfg.left+"%"; d.style.top=cfg.top+"%"; d.style.width=cfg.width+"%"; d.style.height=cfg.height+"%";
+    d.setAttribute("role","button"); d.setAttribute("tabindex","0");
+    d.setAttribute("aria-label","เปิดรายละเอียด LINE "+cfg.code);
+    d.innerHTML='<span class="hotDot" style="background:'+(STATUS_DOT[st.key]||STATUS_DOT.idle)+'"></span><span class="hotLabel">LINE '+cfg.code+'</span>';
+    d.addEventListener("mouseenter",function(){showTip(cfg,d)});
+    d.addEventListener("mousemove",function(){showTip(cfg,d)});
+    d.addEventListener("mouseleave",hideTip);
+    d.addEventListener("click",function(){hideTip();openLine(cfg.code)});
+    d.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openLine(cfg.code)}});
+    wrap.appendChild(d);
+  });
+}
+
+function showTip(cfg,hotEl){
+  var item=lineItemOf_(cfg.code);
+  var st=lineStatusOf_(item);
+  var tip=el("planTip"), wrap=el("planWrap");
+  var tg=num(item.target), ac=num(item.actual);
+  var nowT=dashboardData.isRange?tg:targetNowFor(item,dashboardData.date||currentRange.from);
+  var p=tg>0?(ac/tg*100):0;
+  var model=String(item.active_smpl||item.active_model||item.model1||"").trim();
+  var lot=String(item.active_lot||item.lot_number||"").trim();
+  el("tipLine").innerText="LINE "+cfg.code;
+  el("tipStatus").innerText=st.label||"-";
+  el("tipStatus").className="text-[10px] font-bold px-2 py-0.5 rounded-full "+
+    (st.key==="ok"?"bg-emerald-50 text-emerald-600":st.key==="warn"?"bg-amber-50 text-amber-600":st.key==="bad"?"bg-rose-50 text-rose-600":"bg-slate-100 text-slate-500");
+  el("tipModel").innerText=(model?"รุ่น "+model:"ยังไม่ระบุรุ่น")+(lot?" • LOT "+lot:"")+(item.current_type?" • "+item.current_type:"");
+  el("tipTarget").innerText=fmt(tg)+" ชิ้น";
+  el("tipTargetNow").innerText=fmt(nowT)+" ชิ้น";
+  el("tipActual").innerText=fmt(ac)+" ชิ้น";
+  el("tipPct").innerText=p.toFixed(0)+"%";
+  el("tipBar").style.width=Math.max(0,Math.min(100,p))+"%";
+  el("tipBar").className="h-1.5 rounded-full "+(st.key==="bad"?"bg-rose-500":st.key==="warn"?"bg-amber-500":"bg-emerald-500");
+  var wr=wrap.getBoundingClientRect(), hr=hotEl.getBoundingClientRect();
+  var w=wrap.clientWidth, h=wrap.clientHeight;
+  var hx=hr.left-wr.left, hy=hr.top-wr.top, hw=hr.width, hh=hr.height;
+  var tw=230, th=tip.offsetHeight||200;
+  var left=hx+hw+12;
+  if(left+tw>w-8)left=hx-tw-12;
+  if(left<8)left=Math.max(8,Math.min(w-tw-8,hx+hw/2-tw/2));
+  var top=hy+hh/2-th/2;
+  top=Math.max(8,Math.min(h-th-8,top));
+  tip.style.left=left+"px"; tip.style.top=top+"px";
+  tip.classList.add("show");
+}
+function hideTip(){var t=el("planTip");if(t)t.classList.remove("show")}
 
 function renderChips(){
   var c=el("lineChips");
