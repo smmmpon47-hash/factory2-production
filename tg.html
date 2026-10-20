@@ -539,6 +539,36 @@
     return hours > 8 ? " • เข้างาน 08.00 (มี OT)" : " • เข้างาน 08.30";
   }
 
+  // แสดง % ระหว่างบันทึก (แบบเดียวกับฟอร์ม TG โรง 1) — วิ่งเร็วช่วงแรก แล้วรอ server ที่ 94%
+  function startSaveProgress_(button, doneText) {
+    if (!button) return { finish: () => {}, stop: () => {} };
+
+    let percent = 4;
+    let finished = false;
+    const label = doneText || "กำลังบันทึก";
+
+    button.textContent = `${label}... ${percent}%`;
+
+    const timer = setInterval(() => {
+      if (finished) return;
+      const step = percent < 35 ? 7 : percent < 65 ? 4 : percent < 82 ? 2 : 1;
+      percent = Math.min(94, percent + step);
+      button.textContent = `${label}... ${percent}%`;
+    }, 220);
+
+    return {
+      finish() {
+        finished = true;
+        clearInterval(timer);
+        button.textContent = `${label}... 100%`;
+      },
+      stop() {
+        finished = true;
+        clearInterval(timer);
+      }
+    };
+  }
+
   function getEffectiveRate_() {
     const type = getSelectedType_();
     if (!type) return null;
@@ -831,7 +861,7 @@
     }
 
     submitBtn.disabled = true;
-    submitBtn.textContent = "กำลังบันทึก...";
+    const saveProgress = startSaveProgress_(submitBtn, "กำลังบันทึก");
 
     const payload = {
       action: "TG_FORM",
@@ -853,6 +883,8 @@
       const result = await res.json();
 
       if (result.status === "success") {
+        saveProgress.finish();
+        await new Promise(resolve => setTimeout(resolve, 140));
         alert(
           `บันทึกเรียบร้อย\nLINE ${line}\nLOT ${lot}\nประเภท ${result.productType || productType} (${formatNumber(result.ratePerHour)} ตัว/ชม.)\nเป้าหมาย ${formatNumber(result.target)} ตัว`
         );
@@ -872,9 +904,11 @@
       }
 
     } catch (err) {
+      saveProgress.stop();
       alert("บันทึกไม่สำเร็จ: " + err.message);
 
     } finally {
+      saveProgress.stop();
       submitBtn.disabled = false;
       submitBtn.textContent = "บันทึกเป้าหมาย";
     }
