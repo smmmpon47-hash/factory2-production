@@ -6,13 +6,32 @@
 <title>Factory 2 Production Dashboard</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <link rel="preconnect" href="https://script.google.com">
-<link rel="preconnect" href="https://script.googleusercontent.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script>
+  // FAST LOAD (แบบ Dashboard โรง 1): เริ่มขอข้อมูล "วันนี้" ตั้งแต่บรรทัดแรก
+  // ไม่ต้องรอ Tailwind / Chart.js โหลดเสร็จก่อน — ข้อมูลสดเหมือนเดิม
+  (function(){
+    try{
+      var d=new Date();
+      var today=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+      var base="https://script.google.com/macros/s/AKfycbz8-wdaWStiuydILW17DSxhrprNpxHATuy4tFSrLTooTjQh65vq7NZAN7rux6XCG6tLNQ/exec";
+      window.__dashPrefetch={
+        date:today,
+        used:false,
+        promise:fetch(base+"?action=getDailySummary&date="+today+"&_="+Date.now()+"_pre",{method:"GET",redirect:"follow",cache:"no-store"})
+          .then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.text()})
+      };
+      window.__dashPrefetch.promise.catch(function(){});
+    }catch(e){window.__dashPrefetch=null}
+  })();
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <style>
 :root{
   --navy:#0F172A; --navy2:#16233F;
@@ -823,6 +842,22 @@ async function fetchOneDate(dateStr, options){
   var attempts=Math.max(1,Number(options.attempts)||3);
   var timeoutMs=Math.max(10000,Number(options.timeoutMs)||45000);
   var lastErr=null;
+
+  // FAST LOAD: ใช้คำขอที่ยิงไว้ตั้งแต่ต้นหน้า (ครั้งเดียว วันเดียวกัน) ถ้าพลาดค่อยขอใหม่ตามปกติ
+  var pre=window.__dashPrefetch;
+  if(pre&&!pre.used&&pre.date===dateStr){
+    pre.used=true;
+    try{
+      var preText=await Promise.race([
+        pre.promise,
+        new Promise(function(_,reject){setTimeout(function(){reject(new Error("prefetch timeout"))},timeoutMs)})
+      ]);
+      var preData=preText&&preText.trim()?JSON.parse(preText):null;
+      if(preData&&preData.status!=="error"&&Array.isArray(preData.lines))return preData;
+    }catch(err){
+      console.warn("Dashboard prefetch failed, fetching again:",err);
+    }
+  }
 
   for(var attempt=1;attempt<=attempts;attempt++){
     var controller=new AbortController();
