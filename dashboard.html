@@ -823,11 +823,16 @@ function lineStatus(item,dateStr){
   if(!num(item.target))return {key:"idle",label:"ยังไม่ตั้งเป้า",cls:"bg-slate-100 text-slate-500"};
   var nowT=targetNowFor(item,dateStr);
   if(nowT<=0)return {key:"idle",label:"รอเริ่มงาน",cls:"bg-slate-100 text-slate-500"};
-  if(num(item.actual)>=nowT)return {key:"ok",label:"ตามแผน",cls:"bg-emerald-50 text-emerald-600"};
-  var ratio=nowT?num(item.actual)/nowT:1;
+  return statusVsTarget_(nowT,num(item.actual));
+}
+// เกณฑ์สีเดียวกันทั้งหน้า: ผลิตจริงเทียบเป้า ณ ตอนนี้ (ถึงเป้า = เขียว, ได้ 90% ขึ้นไป = ส้ม, ต่ำกว่านั้น = แดง)
+function statusVsTarget_(nowT,actual){
+  if(actual>=nowT)return {key:"ok",label:"ตามแผน",cls:"bg-emerald-50 text-emerald-600"};
+  var ratio=nowT?actual/nowT:1;
   if(ratio>=0.9)return {key:"warn",label:"เฝ้าระวัง",cls:"bg-amber-50 text-amber-600"};
   return {key:"bad",label:"ต่ำกว่าเป้า",cls:"bg-rose-50 text-rose-600"};
 }
+var BAR_CLASS={ok:"bg-emerald-500",warn:"bg-amber-500",bad:"bg-rose-500",idle:"bg-slate-300"};
 
 // หน้ากำลังโหลด — แบบเดียวกับ Dashboard โรง 1 (วงหมุน + % + แถบวิ่ง + วันที่ที่กำลังโหลด)
 function startLoading(){
@@ -1193,6 +1198,8 @@ function renderCards(lines){
     var nowGapPct=targetNow?Math.round(nowGap/targetNow*100):0;
     var progress=target?Math.round(actual/target*100):0;
     var width=Math.max(0,Math.min(100,progress));
+    // สีแถบ = สถานะเทียบเป้าตอนนี้ (เกณฑ์เดียวกับจุดสีบนผังโรงงาน); ดูหลายวันเทียบเป้ารวม
+    var barKey=!target?"idle":dashboardData.isRange?statusVsTarget_(target,actual).key:lineStatus(item,dashboardData.date||currentRange.from).key;
     var model=item.active_smpl||item.active_model||item.model1||"";
     var lot=item.active_lot||item.lot_number||"";
     var dayCls=dayGap>=0?"text-emerald-600":"text-rose-600";
@@ -1225,7 +1232,7 @@ function renderCards(lines){
     html+='</div></div>';
 
     html+='<div class="flex items-center gap-2 pt-4 mt-auto">';
-    html+='<div class="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden"><div class="bg-amber-500 h-2 rounded-full" style="width:'+width+'%"></div></div>';
+    html+='<div class="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden"><div class="'+(BAR_CLASS[barKey]||BAR_CLASS.idle)+' h-2 rounded-full" style="width:'+width+'%"></div></div>';
     html+='<span class="text-xs font-extrabold text-slate-700">'+progress+'%</span>';
     html+='</div></div>';
 
