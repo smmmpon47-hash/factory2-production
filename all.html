@@ -71,6 +71,12 @@
   .kv b{font-variant-numeric:tabular-nums}
   .track{background:#F1F5F9;border-radius:999px;height:8px;overflow:hidden;margin-top:10px}
   .fill{height:8px;border-radius:999px;background:var(--ok);transition:width .25s ease}
+  /* แถบ 2 ชั้น: ชั้นจาง = เป้า ณ ตอนนี้ (รอให้ถึง) • ชั้นเข้ม = ผลิตจริง */
+  .track,.lineRow .mini{position:relative}
+  .track .ghost,.lineRow .mini .ghost{position:absolute;left:0;top:0;bottom:0;border-radius:999px;opacity:.28;transition:width .25s ease}
+  .track .fill,.lineRow .mini i.solid{position:relative}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 4px 0;font-size:11px;color:var(--muted)}
+  .legend .sw{display:inline-block;width:18px;height:6px;border-radius:999px;vertical-align:middle;margin-right:5px}
   .lines{margin-top:14px;border-top:1px solid #F1F5F9;padding-top:8px}
   .lineRow{display:grid;grid-template-columns:78px 1fr 92px;gap:10px;align-items:center;padding:7px 6px;border-radius:12px;width:100%;border:0;background:transparent;text-align:left}
   .lineRow:hover{background:#F8FAFC}
@@ -138,7 +144,11 @@
       <div class="card" id="cardF1"></div>
       <div class="card" id="cardF2"></div>
     </div>
-    <p class="note" style="margin:12px 4px 0;font-size:11px;color:var(--muted)">คืบหน้า = ผลิตแล้ว ÷ เป้าทั้งวัน • สถานะเทียบเป้า ณ ตอนนี้ ดูได้ในแท็บของแต่ละโรง • คลิกไลน์เพื่อเปิดรายละเอียดในโรงนั้น</p>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--ok)"></i>ผลิตจริง (สีตามสถานะเทียบเป้าตอนนี้: เขียว ตามเป้า • ส้ม ใกล้เป้า • แดง ต่ำกว่าเป้า)</span>
+      <span><i class="sw" style="background:var(--ok);opacity:.28"></i>สีจาง = เป้า ณ ตอนนี้ (ควรผลิตถึงตรงนี้)</span>
+      <span>คืบหน้า % = ผลิตแล้ว ÷ เป้าทั้งวัน • คลิกไลน์เพื่อเปิดรายละเอียดในโรงนั้น</span>
+    </div>
   </section>
 </div>
 
@@ -317,7 +327,7 @@
       var t = lineTotals(it);
       var mp = it.manpower;
       mp = (mp === null || mp === undefined || mp === "") ? 0 : Math.max(0, Math.round(num(mp) * 2) / 2);
-      return { code: FACTORIES[key].lineCode(it.line), target: t.target, actual: t.actual, people: mp };
+      return { code: FACTORIES[key].lineCode(it.line), target: t.target, actual: t.actual, people: mp, item: it };
     });
     // นับเฉพาะไลน์ที่ตั้งเป้าวันนี้แล้ว (ไลน์ที่ยังไม่ตั้งเป้าอาจมีค่ากำลังคนค้างจากวันก่อน)
     var people = lines.reduce(function (a, l) { return a + (l.target > 0 ? l.people : 0); }, 0);
@@ -326,8 +336,81 @@
     return { key: key, lines: lines, target: target, actual: actual, people: people, planned: lines.filter(function (l) { return l.target > 0; }).length };
   }
 
-  // คืบหน้าทั้งวัน (ยังไม่ใช่สถานะเทียบเป้า ณ ตอนนี้) → สีกลาง ๆ ครบเป้าแล้วเป็นสีเขียว
-  function barColor(p) { return p >= 100 ? "var(--ok)" : "#6366F1"; }
+  var STATUS_COLOR = { ok: "var(--ok)", warn: "var(--warn)", bad: "var(--bad)", idle: "#CBD5E1" };
+  var NEUTRAL = "#6366F1"; // ยังคำนวณเป้าตอนนี้ไม่ได้ (เช่น Dashboard โรง 2 ยังโหลดไม่เสร็จ)
+
+  // ===== เป้า ณ ตอนนี้ ของแต่ละไลน์ — ใช้วิธีคิดเดียวกับ Dashboard ของโรงนั้นเป๊ะ =====
+  // โรง 1: เหมือน getLotPlan + getLotLiveMetrics + getLineStatus ใน output/index.html
+  //        (เป้าต่อชม.ของแต่ละ LOT × ชั่วโมงที่บันทึกแล้ว, เกณฑ์ขาด ≤10 ชิ้น เขียว / ≤20 ส้ม / เกินนั้น แดง)
+  function f1LineNow(it) {
+    var total = num(it.total_working_hours) || 8;
+    var lot1 = String(it.lot_number || it.lot1 || "").trim();
+    var lot2 = String(it.lot_number2 || it.lot2 || "").trim();
+    var lot3 = String(it.lot_number3 || it.lot3 || "").trim();
+    var h1 = num(it.hours1) > 0 ? num(it.hours1) : ((!lot2 && !lot3) ? total : 0);
+    var lots = [
+      { lot: lot1, target: num(it.target1) || num(it.target), hours: h1, passed: num(it.production_hours_passed_1), cur: num(it.current_actual_1) },
+      { lot: lot2, target: num(it.target2), hours: num(it.hours2), passed: num(it.production_hours_passed_2), cur: num(it.current_actual_2) },
+      { lot: lot3, target: num(it.target3), hours: num(it.hours3), passed: num(it.production_hours_passed_3), cur: num(it.current_actual_3) }
+    ];
+    var now = 0, rep = 0;
+    lots.forEach(function (lp, i) {
+      if (i > 0 && !lp.lot) return;
+      var h = Math.max(0, lp.hours);
+      var passed = Math.min(h, Math.max(0, lp.passed));
+      now += Math.round((h > 0 ? lp.target / h : 0) * passed);
+      rep += lp.cur;
+    });
+    var key;
+    if (now <= 0 && rep <= 0) key = "idle";
+    else if (now <= 0) key = "ok";
+    else key = (rep - now) >= -10 ? "ok" : (rep - now) >= -20 ? "warn" : "bad";
+    return { now: now, key: key };
+  }
+  // โรง 2: เรียก targetNowFor / lineStatus จาก Dashboard โรง 2 ที่โหลดอยู่ในแท็บข้างใน (ตารางเวลา / Rate ตรงกันแน่นอน)
+  function f2Win() {
+    try {
+      var w = frameOf("f2").contentWindow;
+      var d = w && w.dashboardData;
+      if (w && typeof w.targetNowFor === "function" && d && d.date === todayStr() && !d.isRange) return w;
+    } catch (e) {}
+    return null;
+  }
+  function lineNow(key, it) {
+    if (key === "f1") return f1LineNow(it);
+    var w = f2Win();
+    if (!w) return null;
+    try {
+      var st = w.lineStatus(it, todayStr());
+      return { now: num(w.targetNowFor(it, todayStr())), key: st.key === "idle" && num(it.actual) > 0 ? "ok" : st.key };
+    } catch (e) { return null; }
+  }
+  // ระดับโรง / รวม 2 โรง: ผลิตจริงเทียบผลรวมเป้าตอนนี้ (ถึงเป้า เขียว / ได้ 90% ขึ้นไป ส้ม / ต่ำกว่านั้น แดง)
+  function sumKey(now, actual) {
+    if (now <= 0) return actual > 0 ? "ok" : "idle";
+    return actual >= now ? "ok" : actual / now >= 0.9 ? "warn" : "bad";
+  }
+  function twoLayer(cls, target, actual, now, key) {
+    var w = target ? Math.min(100, actual / target * 100) : 0;
+    var color = key ? STATUS_COLOR[key] : NEUTRAL;
+    var ghost = (key && now > 0 && target) ? "<span class='ghost' style='width:" + Math.min(100, now / target * 100) + "%;background:" + color + "'></span>" : "";
+    return ghost + (cls === "fill"
+      ? "<div class='fill' style='width:" + w + "%;background:" + color + "'></div>"
+      : "<i class='solid' style='width:" + w + "%;background:" + color + "'></i>");
+  }
+  function applyNow(s) {
+    var ready = true;
+    s.now = 0;
+    s.lines.forEach(function (l) {
+      var r = l.target ? lineNow(s.key, l.item) : { now: 0, key: "idle" };
+      if (!r) { ready = false; l.now = 0; l.key = null; return; }
+      l.now = Math.min(l.target, r.now); l.key = r.key;
+      s.now += l.now;
+    });
+    s.ready = ready;
+    s.st = ready ? sumKey(s.now, s.actual) : null;
+    return s;
+  }
 
   // จำนวนคนรวม (มุมขวาบนของการ์ด) = ผลรวม "กำลังคน" ทุกไลน์ของวันนี้
   function peopleBox(n, label) {
@@ -347,12 +430,12 @@
       "<div class='big'>" + p.toFixed(1) + "%</div>" +
       "<div class='kv'><span>ผลิตแล้ว</span><b>" + fmt(s.actual) + " ชิ้น</b></div>" +
       "<div class='kv'><span>เป้าทั้งวัน</span><b>" + fmt(s.target) + " ชิ้น</b></div>" +
-      "<div class='track'><div class='fill' style='width:" + Math.min(100, p) + "%;background:" + barColor(p) + "'></div></div>" +
+      "<div class='kv'><span>เป้า ณ ตอนนี้</span><b>" + (s.ready ? fmt(s.now) + " ชิ้น" : "กำลังคำนวณ...") + "</b></div>" +
+      "<div class='track'>" + twoLayer("fill", s.target, s.actual, s.now, s.st) + "</div>" +
       "<div class='lines'>" + s.lines.map(function (l) {
-        var lp = l.target ? l.actual / l.target * 100 : 0;
         return "<button type='button' class='lineRow" + (l.target ? "" : " idle") + "' data-tab='" + s.key + "' data-line='" + esc(l.code) + "'>" +
           "<span class='nm'>LINE " + esc(l.code) + "</span>" +
-          "<span class='mini'><i style='width:" + Math.min(100, lp) + "%;background:" + barColor(lp) + "'></i></span>" +
+          "<span class='mini' title='" + (l.key && l.target ? "เป้าตอนนี้ " + fmt(l.now) + " ชิ้น" : "") + "'>" + twoLayer("mini", l.target, l.actual, l.now, l.target ? l.key : "idle") + "</span>" +
           "<span class='num'>" + (l.target ? fmt(l.actual) + " / " + fmt(l.target) : "ยังไม่ตั้งเป้า") + "</span></button>";
       }).join("") + "</div>";
     el.querySelectorAll(".lineRow").forEach(function (b) {
@@ -367,6 +450,8 @@
     var planned = ok.reduce(function (a, s) { return a + s.planned; }, 0);
     var all = ok.reduce(function (a, s) { return a + s.lines.length; }, 0);
     var people = ok.reduce(function (a, s) { return a + s.people; }, 0);
+    var ready = ok.length > 0 && ok.every(function (s) { return s.ready; });
+    var now = ok.reduce(function (a, s) { return a + (s.now || 0); }, 0);
     var p = target ? actual / target * 100 : 0;
     $("cardAll").innerHTML =
       "<div class='cardHead'><div><h3>รวม 2 โรง</h3><div class='note'>ตั้งเป้าแล้ว " + planned + " / " + all + " ไลน์" + (ok.length < 2 ? " • ข้อมูลไม่ครบ" : "") + "</div></div>" +
@@ -374,11 +459,41 @@
       "<div class='big'>" + p.toFixed(1) + "%</div>" +
       "<div class='kv'><span>ผลิตแล้ว</span><b>" + fmt(actual) + " ชิ้น</b></div>" +
       "<div class='kv'><span>เป้าทั้งวัน</span><b>" + fmt(target) + " ชิ้น</b></div>" +
-      "<div class='track'><div class='fill' style='width:" + Math.min(100, p) + "%;background:" + barColor(p) + "'></div></div>" +
+      "<div class='kv'><span>เป้า ณ ตอนนี้</span><b>" + (ready ? fmt(now) + " ชิ้น" : "กำลังคำนวณ...") + "</b></div>" +
+      "<div class='track'>" + twoLayer("fill", target, actual, now, ready ? sumKey(now, actual) : null) + "</div>" +
       ok.map(function (s) {
         var sp = s.target ? s.actual / s.target * 100 : 0;
         return "<div class='kv' style='margin-top:12px'><span>" + esc(FACTORIES[s.key].name) + " • " + fmt(s.people) + " คน</span><b>" + fmt(s.actual) + " / " + fmt(s.target) + " (" + sp.toFixed(0) + "%)</b></div>";
       }).join("");
+  }
+
+  var lastRes = null;
+  function renderOverview() {
+    if (!lastRes) return;
+    var parts = lastRes.map(function (r, i) {
+      var key = i === 0 ? "f1" : "f2";
+      var card = $(i === 0 ? "cardF1" : "cardF2");
+      if (r.status === "fulfilled") {
+        var s = applyNow(summarize(key, r.value));
+        renderFactoryCard(card, s);
+        return s;
+      }
+      renderFactoryCard(card, null, r.reason);
+      return null;
+    });
+    renderTotalCard(parts);
+    return parts;
+  }
+  // เป้าตอนนี้ของโรง 2 ต้องรอ Dashboard โรง 2 (ในแท็บข้างใน) โหลดข้อมูลวันนี้เสร็จก่อน → โหลดไว้เงียบ ๆ แล้ววาดใหม่
+  var waitF2Timer = null;
+  function waitF2ThenRender() {
+    clearTimeout(waitF2Timer);
+    ensureFrame("f2", true);
+    var tries = 0;
+    (function poll() {
+      if (f2Win()) { renderOverview(); return; }
+      if (++tries < 120) waitF2Timer = setTimeout(poll, 500);
+    })();
   }
 
   var overviewLoading = false;
@@ -388,19 +503,9 @@
     $("cardF1").dataset.key = "f1";
     $("cardF2").dataset.key = "f2";
     try {
-      var res = await Promise.allSettled([fetchSummary("f1"), fetchSummary("f2")]);
-      var parts = res.map(function (r, i) {
-        var key = i === 0 ? "f1" : "f2";
-        var card = $(i === 0 ? "cardF1" : "cardF2");
-        if (r.status === "fulfilled") {
-          var s = summarize(key, r.value);
-          renderFactoryCard(card, s);
-          return s;
-        }
-        renderFactoryCard(card, null, r.reason);
-        return null;
-      });
-      renderTotalCard(parts);
+      lastRes = await Promise.allSettled([fetchSummary("f1"), fetchSummary("f2")]);
+      var parts = renderOverview();
+      if (parts[1] && !parts[1].ready) waitF2ThenRender();
       $("ovUpdated").innerText = "อัปเดตล่าสุด " + new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " น. • รีเฟรชเองทุก 1 นาที";
     } finally {
       overviewLoading = false;
