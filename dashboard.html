@@ -64,13 +64,21 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
 .metricLabel{font-size:10px;font-weight:600;color:#94A3B8}
 .badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:800}
 
+/* ---------- dashboard loading overlay (แบบเดียวกับ Dashboard โรง 1) ---------- */
 #dashboardLoadingOverlay{
   position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;
-  padding:20px;background:rgba(15,23,42,.22);backdrop-filter:blur(5px);
+  padding:20px;background:rgba(15,23,42,.22);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+  opacity:0;pointer-events:none;transition:opacity .22s cubic-bezier(0.22,1,0.36,1);
 }
-.loadingBox{width:min(350px,calc(100vw - 40px));background:#fff;border:1px solid #E2E8F0;border-radius:22px;padding:19px;box-shadow:0 22px 55px -30px rgba(15,23,42,.65)}
-.loadingTrack{height:7px;background:#EEF2F7;border-radius:999px;overflow:hidden}
-.loadingBar{height:100%;background:#6366F1;border-radius:999px;transition:width .2s ease}
+#dashboardLoadingOverlay.show{opacity:1;pointer-events:auto}
+.dashboardLoadingCard{width:min(360px,92vw);border:1px solid rgba(226,232,240,.95);border-radius:24px;background:rgba(255,255,255,.97);box-shadow:0 24px 60px -24px rgba(15,23,42,.45);padding:22px 24px}
+.dashboardSpinner{width:34px;height:34px;border-radius:999px;border:3px solid #E2E8F0;border-top-color:#4F46E5;animation:dashboardSpin .8s linear infinite}
+.dashboardLoadingBar{position:relative;height:5px;margin-top:16px;overflow:hidden;border-radius:999px;background:#EEF2F7}
+.dashboardLoadingBar::after{content:"";position:absolute;inset:0 auto 0 0;width:42%;border-radius:inherit;background:linear-gradient(90deg,#6366F1,#38BDF8);animation:dashboardLoadingSlide 1.05s ease-in-out infinite}
+.dashboardLoadingPercent{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;color:#4F46E5}
+@keyframes dashboardSpin{to{transform:rotate(360deg)}}
+@keyframes dashboardLoadingSlide{0%{transform:translateX(-115%)}100%{transform:translateX(340%)}}
+@media (prefers-reduced-motion: reduce){.dashboardSpinner,.dashboardLoadingBar::after{animation:none}}
 
 @media(max-width:640px){
   .lineCard{min-height:0}
@@ -99,16 +107,20 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
 </head>
 <body class="pb-10">
 
-<div id="dashboardLoadingOverlay">
-  <div class="loadingBox">
-    <div class="flex items-center justify-between gap-4">
-      <div>
-        <p class="text-sm font-extrabold text-slate-800">กำลังโหลดข้อมูล...</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">Factory 2 Production Dashboard</p>
+<div id="dashboardLoadingOverlay" class="show" aria-live="polite" aria-busy="true">
+  <div class="dashboardLoadingCard">
+    <div class="flex items-center gap-4">
+      <div class="dashboardSpinner shrink-0"></div>
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center justify-between gap-3">
+          <p class="text-sm font-extrabold text-slate-800">กำลังโหลดข้อมูลการผลิต</p>
+          <p id="loadingPct" class="dashboardLoadingPercent text-sm font-extrabold">0%</p>
+        </div>
+        <p id="loadingDate" class="text-[11px] text-slate-400 mt-1">กรุณารอสักครู่...</p>
       </div>
-      <span id="loadingPct" class="text-lg font-extrabold text-indigo-600 tabular-nums">0%</span>
     </div>
-    <div class="loadingTrack mt-4"><div id="loadingBar" class="loadingBar" style="width:0%"></div></div>
+    <div class="dashboardLoadingBar"></div>
+    <p class="text-[10px] text-slate-400 mt-3">กำลังอัปเดต Dashboard ให้เป็นข้อมูลล่าสุด</p>
   </div>
 </div>
 
@@ -825,25 +837,26 @@ function lineStatus(item,dateStr){
   return {key:"bad",label:"ต่ำกว่าเป้า",cls:"bg-rose-50 text-rose-600"};
 }
 
+// หน้ากำลังโหลด — แบบเดียวกับ Dashboard โรง 1 (วงหมุน + % + แถบวิ่ง + วันที่ที่กำลังโหลด)
 function startLoading(){
+  var from=(el("datePicker")&&el("datePicker").value)||todayLocal();
+  var to=(el("datePickerTo")&&el("datePickerTo").value)||"";
+  el("loadingDate").innerText=(to&&to!==from)?(from+"  →  "+to):from;
   loadingValue=4;
   el("loadingPct").innerText=loadingValue+"%";
-  el("loadingBar").style.width=loadingValue+"%";
-  el("dashboardLoadingOverlay").classList.remove("hide");
+  el("dashboardLoadingOverlay").classList.add("show");
   clearInterval(loadingTimer);
   loadingTimer=setInterval(function(){
     var step=loadingValue<35?7:loadingValue<70?4:loadingValue<88?2:1;
-    loadingValue=Math.min(94,loadingValue+step);
+    loadingValue=Math.min(92,loadingValue+step);
     el("loadingPct").innerText=loadingValue+"%";
-    el("loadingBar").style.width=loadingValue+"%";
   },180);
 }
 function finishLoading(){
   clearInterval(loadingTimer);
   loadingValue=100;
   el("loadingPct").innerText="100%";
-  el("loadingBar").style.width="100%";
-  setTimeout(function(){el("dashboardLoadingOverlay").classList.add("hide")},140);
+  setTimeout(function(){el("dashboardLoadingOverlay").classList.remove("show")},220);
 }
 
 async function fetchOneDate(dateStr, options){
