@@ -145,8 +145,8 @@
       <div class="card" id="cardF2"></div>
     </div>
     <div class="legend">
-      <span><i class="sw" style="background:var(--ok)"></i>ผลิตจริง (สีตามสถานะเทียบเป้าตอนนี้: เขียว ตามเป้า • ส้ม ใกล้เป้า • แดง ต่ำกว่าเป้า)</span>
-      <span><i class="sw" style="background:var(--ok);opacity:.28"></i>สีจาง = เป้า ณ ตอนนี้ (ควรผลิตถึงตรงนี้)</span>
+      <span><i class="sw" style="background:var(--ok)"></i>ผลิตจริง (แถบรายไลน์: สีตามเกณฑ์สถานะของแต่ละโรง)</span>
+      <span><i class="sw" style="background:#6366F1;opacity:.28"></i>สีจาง = เป้า ณ ตอนนี้ (ควรผลิตถึงตรงนี้)</span>
       <span>คืบหน้า % = ผลิตแล้ว ÷ เป้าทั้งวัน • คลิกไลน์เพื่อเปิดรายละเอียดในโรงนั้น</span>
     </div>
   </section>
@@ -385,11 +385,9 @@
       return { now: num(w.targetNowFor(it, todayStr())), key: st.key === "idle" && num(it.actual) > 0 ? "ok" : st.key };
     } catch (e) { return null; }
   }
-  // ระดับโรง / รวม 2 โรง: ผลิตจริงเทียบผลรวมเป้าตอนนี้ (ถึงเป้า เขียว / ได้ 90% ขึ้นไป ส้ม / ต่ำกว่านั้น แดง)
-  function sumKey(now, actual) {
-    if (now <= 0) return actual > 0 ? "ok" : "idle";
-    return actual >= now ? "ok" : actual / now >= 0.9 ? "warn" : "bad";
-  }
+  // ระดับโรง / รวม 2 โรง: สีเดิม (ม่วง ครบเป้าทั้งวันแล้วเป็นเขียว) — เกณฑ์เขียว/ส้ม/แดง ใช้เฉพาะแถบรายไลน์
+  STATUS_COLOR.sum = "#6366F1"; STATUS_COLOR.done = "var(--ok)";
+  function sumKey(now, actual, target) { return target > 0 && actual >= target ? "done" : "sum"; }
   function twoLayer(cls, target, actual, now, key) {
     var w = target ? Math.min(100, actual / target * 100) : 0;
     var color = key ? STATUS_COLOR[key] : NEUTRAL;
@@ -408,7 +406,7 @@
       s.now += l.now;
     });
     s.ready = ready;
-    s.st = ready ? sumKey(s.now, s.actual) : null;
+    s.st = ready ? sumKey(s.now, s.actual, s.target) : null;
     return s;
   }
 
@@ -460,7 +458,7 @@
       "<div class='kv'><span>ผลิตแล้ว</span><b>" + fmt(actual) + " ชิ้น</b></div>" +
       "<div class='kv'><span>เป้าทั้งวัน</span><b>" + fmt(target) + " ชิ้น</b></div>" +
       "<div class='kv'><span>เป้า ณ ตอนนี้</span><b>" + (ready ? fmt(now) + " ชิ้น" : "กำลังคำนวณ...") + "</b></div>" +
-      "<div class='track'>" + twoLayer("fill", target, actual, now, ready ? sumKey(now, actual) : null) + "</div>" +
+      "<div class='track'>" + twoLayer("fill", target, actual, now, ready ? sumKey(now, actual, target) : null) + "</div>" +
       ok.map(function (s) {
         var sp = s.target ? s.actual / s.target * 100 : 0;
         return "<div class='kv' style='margin-top:12px'><span>" + esc(FACTORIES[s.key].name) + " • " + fmt(s.people) + " คน</span><b>" + fmt(s.actual) + " / " + fmt(s.target) + " (" + sp.toFixed(0) + "%)</b></div>";
