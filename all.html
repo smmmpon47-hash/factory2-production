@@ -197,14 +197,43 @@
 
   function frameOf(tab) { return $("frame-" + tab); }
 
-  function ensureFrame(tab) {
+  // ข้อความ "กำลังเปิด" แสดงแค่ช่วงที่หน้าข้างในยังไม่เริ่ม — พอหน้าข้างในเริ่มทำงาน
+  // ใช้หน้ากำลังโหลดของ Dashboard นั้นเอง (เดิมรอจนรูป/สคริปต์ข้างในโหลดครบ ทำให้ดูช้า)
+  function frameStarted(f) {
+    try {
+      var d = f.contentDocument;
+      return !!(d && d.URL !== "about:blank" && d.readyState !== "loading");
+    } catch (e) { return true; }
+  }
+  function watchFrameStart(tab) {
+    var f = frameOf(tab);
+    (function poll() {
+      if (frameStarted(f)) {
+        if (current === tab) $("frameLoading").classList.remove("show");
+        syncScrollbar();
+        schedulePreload();
+        return;
+      }
+      setTimeout(poll, 80);
+    })();
+  }
+
+  function ensureFrame(tab, background) {
     var f = frameOf(tab);
     if (!f || f.getAttribute("src")) return f;
-    // โหลดเฉพาะตอนกดดูครั้งแรก — หลังจากนั้นสลับไปมาได้ทันที
-    $("frameLoading").classList.add("show");
-    f.addEventListener("load", function () { if (current === tab) { $("frameLoading").classList.remove("show"); syncScrollbar(); } }, { once: true });
+    if (!background) $("frameLoading").classList.add("show");
     f.setAttribute("src", FACTORIES[tab].src);
+    watchFrameStart(tab);
     return f;
+  }
+
+  // โหลดอีกโรงไว้เงียบ ๆ หลังหน้าที่ดูอยู่ขึ้นแล้ว → กดสลับแล้วเห็นทันที ไม่ต้องรอโหลดใหม่
+  var preloadTimer = null;
+  function schedulePreload() {
+    clearTimeout(preloadTimer);
+    preloadTimer = setTimeout(function () {
+      ["f1", "f2"].forEach(function (t) { if (t !== current) ensureFrame(t, true); });
+    }, 2500);
   }
 
   function showTab(tab) {
@@ -228,7 +257,7 @@
     } else {
       clearInterval(overviewTimer);
       var f = ensureFrame(tab);
-      if (f.getAttribute("src") && f.contentDocument && f.contentDocument.readyState === "complete") $("frameLoading").classList.remove("show");
+      if (frameStarted(f)) $("frameLoading").classList.remove("show");
     }
     syncScrollbar();
     lsSet("allDashTab", tab);
@@ -359,6 +388,7 @@
       $("ovUpdated").innerText = "อัปเดตล่าสุด " + new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " น. • รีเฟรชเองทุก 1 นาที";
     } finally {
       overviewLoading = false;
+      schedulePreload();
     }
   }
 
