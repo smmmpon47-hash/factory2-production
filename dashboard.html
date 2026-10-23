@@ -191,7 +191,7 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
       <div class="h-64 relative"><canvas id="factoryChart"></canvas></div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
+    <div class="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-3">
       <div class="card soft kpi flex items-center gap-3">
         <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">✅</div>
         <div>
@@ -204,16 +204,8 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
         <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">🎯</div>
         <div>
           <p class="text-[11px] text-slate-400 font-semibold">เป้าหมายรวม</p>
-          <p class="text-xl font-extrabold text-slate-800"><span id="kpiTarget">0</span> <span class="text-xs font-semibold text-slate-400">ชิ้น</span></p>
-        </div>
-      </div>
-
-      <div class="card soft kpi flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg">⏱️</div>
-        <div>
-          <p class="text-[11px] text-slate-400 font-semibold">ชม.ทำงานเฉลี่ย</p>
-          <p class="text-xl font-extrabold text-slate-800"><span id="kpiAvgHours">-</span> <span class="text-xs font-semibold text-slate-400">ชม.</span></p>
-          <p id="kpiAvgHoursNote" class="text-[10px] text-slate-400">-</p>
+          <p class="text-xl font-extrabold text-slate-800"><span id="kpiTarget">0</span> <span class="text-xs font-semibold text-slate-400">ชิ้น</span><span id="kpiAvgHoursWrap" class="hidden"> <span class="text-slate-300 font-semibold">/</span> <span id="kpiAvgHours">-</span> <span class="text-xs font-semibold text-slate-400">ชม.</span></span></p>
+          <p id="kpiAvgHoursNote" class="hidden text-[10px] text-slate-400 font-semibold">ชม.ทำงานเฉลี่ย <span id="kpiAvgHoursCount">-</span> LINE</p>
         </div>
       </div>
 
@@ -222,7 +214,7 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
           <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-lg">📈</div>
           <div>
             <p class="text-[11px] text-slate-400 font-semibold">คืบหน้าทั้งโรงงาน</p>
-            <p id="kpiPct" class="text-xl font-extrabold text-slate-800">0%</p>
+            <p class="text-xl font-extrabold text-slate-800"><span id="kpiPct">0%</span></p>
           </div>
         </div>
         <div class="mt-3 bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -1062,16 +1054,22 @@ function renderAll(){
   el("kpiPct").innerText=progress.toFixed(1)+"%";
   el("kpiBar").style.width=Math.max(0,Math.min(100,progress))+"%";
 
-  // V13: ชม.ทำงานเฉลี่ย — เฉพาะไลน์ที่ตั้งเป้าแล้ว
-  var planned=lines.filter(function(d){return num(d.target)>0});
-  var planDays=dashboardData.isRange
-    ? lines.reduce(function(sum,d){return sum+num(d.plan_days)},0)
-    : planned.length;
-  var hoursSum=planned.reduce(function(sum,d){return sum+num(d.total_working_hours)},0);
-  el("kpiAvgHours").innerText=planDays?(hoursSum/planDays).toFixed(1):"-";
-  el("kpiAvgHoursNote").innerText=planDays
-    ? (dashboardData.isRange ? ("เฉลี่ยจาก "+planDays+" ไลน์-วัน") : ("จาก "+planned.length+" ไลน์ที่ตั้งเป้า"))
-    : "ยังไม่มีไลน์ตั้งเป้า";
+  // ชม.ทำงานเฉลี่ย (แบบโรง 1): ต่อท้ายเป้าหมายรวม "X ชิ้น / Y ชม." เฉพาะดูวันเดียว
+  // นับเฉพาะไลน์ที่ตั้งเป้าแล้ว • ดูหลายวันซ่อนไว้ (ข้อมูลรวมหลายวันต่อไลน์)
+  var hrsList=dashboardData.isRange?[]:lines
+    .filter(function(d){return num(d.target)>0})
+    .map(function(d){return num(d.total_working_hours)})
+    .filter(function(h){return h>0});
+  if(hrsList.length){
+    var avgH=hrsList.reduce(function(a,h){return a+h},0)/hrsList.length;
+    el("kpiAvgHours").innerText=Number.isInteger(avgH)?String(avgH):avgH.toFixed(1);
+    el("kpiAvgHoursCount").innerText=hrsList.length;
+    el("kpiAvgHoursWrap").classList.remove("hidden");
+    el("kpiAvgHoursNote").classList.remove("hidden");
+  }else{
+    el("kpiAvgHoursWrap").classList.add("hidden");
+    el("kpiAvgHoursNote").classList.add("hidden");
+  }
 
   renderDailyChart(lines,true);
   renderLineSelector(lines);
