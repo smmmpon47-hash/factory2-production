@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Production Dashboard • โรง 1 และ โรง 2</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+  /*
+   * หน้ารวม Dashboard — เป็นแค่ "กรอบ" ที่ฝัง Dashboard โรง 1 และโรง 2 ตัวเดิมไว้ข้างใน
+   * โค้ด / Apps Script / Sheet ของแต่ละโรงยังแยกกันทั้งหมด แก้โรงไหนก็ไม่กระทบอีกโรง
+   * ลิงก์เดิมของแต่ละโรงยังเปิดดูแยกได้เหมือนเดิม
+   */
+  :root{
+    --navy:#0F172A; --ink:#0F172A; --muted:#64748B; --line:#E2E8F0; --bg:#EEF2F7;
+    --ok:#10B981; --warn:#F59E0B; --bad:#F43F5E;
+  }
+  *{box-sizing:border-box;font-family:'Kanit',system-ui,sans-serif}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink)}
+  body{display:flex;flex-direction:column;min-height:100dvh}
+  button{font:inherit;cursor:pointer}
+
+  .top{padding:16px 24px 0;flex:0 0 auto}
+  header{border-radius:26px;padding:16px 24px;color:#fff;background:linear-gradient(120deg,#0F172A 0%,#16233F 55%,#1E3356 100%);box-shadow:0 10px 30px -22px rgba(15,23,42,.45);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:44px;height:44px;border-radius:16px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:20px}
+  h1{margin:0;font-size:20px;font-weight:700;line-height:1.2}
+  .sub{margin:2px 0 0;font-size:11px;color:rgba(255,255,255,.6)}
+  .hdRight{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .pill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:8px 12px;height:48px;color:#fff}
+  .pill .d1{font-size:12px;font-weight:600;margin:0}
+  .pill .d2{font-size:10px;color:rgba(255,255,255,.55);margin:0}
+  .pill .clock{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;margin:0}
+  .pill.btn:hover{background:rgba(255,255,255,.2)}
+  .pill.btn:disabled{opacity:.35;cursor:not-allowed}
+
+  /* ปุ่มสลับ โรง 1 | โรง 2 | รวม */
+  .tabs{display:inline-grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:12px 0 0;padding:4px;border-radius:16px;background:#fff;border:1px solid var(--line);box-shadow:0 10px 30px -24px rgba(15,23,42,.45)}
+  .tab{border:0;background:transparent;border-radius:12px;padding:9px 22px;font-size:14px;font-weight:700;color:#475569;white-space:nowrap;transition:.15s ease}
+  .tab:hover{background:#F1F5F9}
+  .tab.active{background:var(--navy);color:#fff;box-shadow:0 10px 20px -14px rgba(2,8,23,.9)}
+  .tab small{display:block;font-size:10px;font-weight:600;opacity:.7}
+
+  /* พื้นที่แสดงผล: Dashboard แต่ละโรงฝังเต็มพื้นที่ เลื่อนดูข้างในได้ */
+  .stage{flex:1 1 auto;position:relative;min-height:0;margin-top:4px}
+  .stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg);display:none}
+  .stage iframe.show{display:block}
+  .frameLoading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted);font-weight:600}
+  .frameLoading.show{display:flex}
+
+  /* แท็บ "รวม" */
+  .overview{position:absolute;inset:0;overflow:auto;padding:12px 24px 40px;display:none}
+  .overview.show{display:block}
+  .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .card{background:#fff;border:1px solid #E6EBF2;border-radius:22px;padding:18px;box-shadow:0 10px 30px -22px rgba(15,23,42,.45)}
+  .card h3{margin:0 0 2px;font-size:15px;font-weight:800}
+  .card .note{font-size:11px;color:var(--muted)}
+  .big{font-size:28px;font-weight:800;margin:10px 0 2px;font-variant-numeric:tabular-nums}
+  .kv{display:flex;justify-content:space-between;font-size:13px;margin-top:6px}
+  .kv span{color:var(--muted)}
+  .kv b{font-variant-numeric:tabular-nums}
+  .track{background:#F1F5F9;border-radius:999px;height:8px;overflow:hidden;margin-top:10px}
+  .fill{height:8px;border-radius:999px;background:var(--ok);transition:width .25s ease}
+  .lines{margin-top:14px;border-top:1px solid #F1F5F9;padding-top:8px}
+  .lineRow{display:grid;grid-template-columns:78px 1fr 92px;gap:10px;align-items:center;padding:7px 6px;border-radius:12px;width:100%;border:0;background:transparent;text-align:left}
+  .lineRow:hover{background:#F8FAFC}
+  .lineRow .nm{font-size:12px;font-weight:800}
+  .lineRow .num{font-size:11px;color:#475569;text-align:right;font-variant-numeric:tabular-nums}
+  .lineRow .mini{background:#F1F5F9;border-radius:999px;height:6px;overflow:hidden}
+  .lineRow .mini i{display:block;height:6px;border-radius:999px;background:var(--ok)}
+  .lineRow.idle .nm,.lineRow.idle .num{color:#94A3B8}
+  .ovHead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px;margin:6px 2px 12px}
+  .ovHead h2{margin:0;font-size:16px;font-weight:800}
+  .ovHead p{margin:0;font-size:11px;color:var(--muted)}
+  .err{color:#B91C1C;font-size:12px;margin-top:8px}
+
+  @media (max-width:1023px){
+    .grid3{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    .top{padding:10px 10px 0}
+    header{padding:12px 14px;border-radius:20px}
+    h1{font-size:17px}
+    .hdRight .pill.user{display:none}
+    .tabs{display:grid;width:100%}
+    .tab{padding:8px 6px;font-size:13px}
+    .overview{padding:10px 10px 30px}
+  }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <header>
+    <div class="brand">
+      <div class="logo">🏭</div>
+      <div>
+        <h1>Production Dashboard</h1>
+        <p class="sub" id="hdSub">ติดตามการผลิตแบบเรียลไทม์ • โรง 1 และ โรง 2</p>
+      </div>
+    </div>
+    <div class="hdRight">
+      <div class="pill"><span>📅</span><div><p class="d1" id="hdDate">-</p><p class="d2" id="hdDay">-</p></div></div>
+      <div class="pill"><span>🕒</span><p class="clock" id="hdClock">--:--:--</p></div>
+      <button class="pill btn" id="searchBtn" type="button" title="ค้นหา LOT ในโรงที่เปิดอยู่">🔍</button>
+      <div class="pill user"><span>👤</span><span class="d1">Guest User</span></div>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="เลือกโรงงาน">
+    <button class="tab" data-tab="f1" role="tab" type="button">โรง 1<small>ชั้น 3 และ 4</small></button>
+    <button class="tab" data-tab="f2" role="tab" type="button">โรง 2<small>LINE 201–206</small></button>
+    <button class="tab" data-tab="all" role="tab" type="button">รวม<small>ภาพรวม 2 โรง</small></button>
+  </div>
+</div>
+
+<div class="stage">
+  <iframe id="frame-f1" title="Dashboard โรง 1"></iframe>
+  <iframe id="frame-f2" title="Dashboard โรง 2"></iframe>
+  <div class="frameLoading" id="frameLoading">กำลังเปิด Dashboard...</div>
+
+  <section class="overview" id="overview" aria-label="ภาพรวม 2 โรง">
+    <div class="ovHead">
+      <h2>ภาพรวมวันนี้ • โรง 1 และ โรง 2</h2>
+      <p id="ovUpdated">กำลังโหลด...</p>
+    </div>
+    <div class="grid3">
+      <div class="card" id="cardAll"></div>
+      <div class="card" id="cardF1"></div>
+      <div class="card" id="cardF2"></div>
+    </div>
+    <p class="note" style="margin:12px 4px 0;font-size:11px;color:var(--muted)">คืบหน้า = ผลิตแล้ว ÷ เป้าทั้งวัน • สถานะเทียบเป้า ณ ตอนนี้ ดูได้ในแท็บของแต่ละโรง • คลิกไลน์เพื่อเปิดรายละเอียดในโรงนั้น</p>
+  </section>
+</div>
+
+<script>
+  // ===== ตั้งค่า =====
+  // ลิงก์ Dashboard ตัวเดิมของแต่ละโรง (อยู่บน GitHub Pages บัญชีเดียวกัน)
+  var FACTORIES = {
+    f1: {
+      name: "โรง 1",
+      src: "../output/?embed=1",
+      api: "https://script.google.com/macros/s/AKfycbyLm1LVkTiwK3PCvPSt3PFA1ifb76KCRsWxC1SkaLdDC-ginxy0RHWstWpHgDytaBmm/exec",
+      lineCode: function (v) { return String(v || "").replace(/LINE/i, "").trim().toUpperCase(); }
+    },
+    f2: {
+      name: "โรง 2",
+      src: "dashboard.html?embed=1",
+      api: "https://script.google.com/macros/s/AKfycbz8-wdaWStiuydILW17DSxhrprNpxHATuy4tFSrLTooTjQh65vq7NZAN7rux6XCG6tLNQ/exec",
+      lineCode: function (v) { return String(v || "").replace(/LINE/i, "").trim(); }
+    }
+  };
+  var OVERVIEW_REFRESH_MS = 60000;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var num = function (v) { var n = Number(v); return isFinite(n) ? n : 0; };
+  var fmt = function (v) { return num(v).toLocaleString(); };
+  var esc = function (v) { return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  // ===== หัว: วันที่ + นาฬิกา =====
+  function tickClock() {
+    var d = new Date();
+    $("hdDate").innerText = d.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
+    $("hdDay").innerText = d.toLocaleDateString("th-TH", { weekday: "long" });
+    $("hdClock").innerText = d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // ===== สลับแท็บ =====
+  var current = "";
+  var overviewTimer = null;
+
+  function frameOf(tab) { return $("frame-" + tab); }
+
+  function ensureFrame(tab) {
+    var f = frameOf(tab);
+    if (!f || f.getAttribute("src")) return f;
+    // โหลดเฉพาะตอนกดดูครั้งแรก — หลังจากนั้นสลับไปมาได้ทันที
+    $("frameLoading").classList.add("show");
+    f.addEventListener("load", function () { if (current === tab) $("frameLoading").classList.remove("show"); }, { once: true });
+    f.setAttribute("src", FACTORIES[tab].src);
+    return f;
+  }
+
+  function showTab(tab) {
+    if (!FACTORIES[tab] && tab !== "all") tab = "f1";
+    current = tab;
+    document.querySelectorAll(".tab").forEach(function (b) {
+      var on = b.dataset.tab === tab;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    ["f1", "f2"].forEach(function (t) { frameOf(t).classList.toggle("show", t === tab); });
+    $("overview").classList.toggle("show", tab === "all");
+    $("frameLoading").classList.remove("show");
+    $("searchBtn").disabled = tab === "all";
+    $("hdSub").innerText = "ติดตามการผลิตแบบเรียลไทม์ • " + (tab === "all" ? "โรง 1 และ โรง 2" : FACTORIES[tab].name);
+
+    if (tab === "all") {
+      loadOverview();
+      clearInterval(overviewTimer);
+      overviewTimer = setInterval(function () { if (current === "all" && document.visibilityState === "visible") loadOverview(); }, OVERVIEW_REFRESH_MS);
+    } else {
+      clearInterval(overviewTimer);
+      var f = ensureFrame(tab);
+      if (f.getAttribute("src") && f.contentDocument && f.contentDocument.readyState === "complete") $("frameLoading").classList.remove("show");
+    }
+    lsSet("allDashTab", tab);
+    if (location.hash !== "#" + tab) history.replaceState(null, "", "#" + tab);
+  }
+
+  document.querySelectorAll(".tab").forEach(function (b) {
+    b.addEventListener("click", function () { showTab(b.dataset.tab); });
+  });
+
+  // 🔍 บนหัว = ค้นหา LOT ในโรงที่เปิดอยู่ (เรียกฟังก์ชันของ Dashboard โรงนั้นเอง)
+  $("searchBtn").addEventListener("click", function () {
+    var f = frameOf(current);
+    try { if (f && f.contentWindow && typeof f.contentWindow.openLotSearch === "function") f.contentWindow.openLotSearch(); } catch (e) {}
+  });
+
+  // คลิกไลน์ในแท็บรวม → เปิดโรงนั้น แล้วเปิดรายละเอียดไลน์
+  function openFactoryLine(tab, code) {
+    showTab(tab);
+    var f = frameOf(tab);
+    var tries = 0;
+    (function attempt() {
+      tries++;
+      try {
+        var w = f.contentWindow;
+        if (w && typeof w.openLine === "function" && f.contentDocument.readyState === "complete") {
+          setTimeout(function () { try { w.openLine(code); } catch (e) {} }, tries > 1 ? 1200 : 0);
+          return;
+        }
+      } catch (e) {}
+      if (tries < 60) setTimeout(attempt, 250);
+    })();
+  }
+
+  // ===== แท็บ "รวม": ดึงสรุปของแต่ละโรงจาก Apps Script ของโรงนั้นเอง =====
+  async function fetchSummary(key) {
+    var url = FACTORIES[key].api + "?action=getDailySummary&date=" + todayStr() + "&_=" + Date.now();
+    var res = await fetch(url, { cache: "no-store", redirect: "follow" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    var data = JSON.parse(await res.text());
+    if (data && data.status === "error") throw new Error(data.error || "โหลดไม่สำเร็จ");
+    return data;
+  }
+
+  function lineTotals(item) {
+    var tg = num(item.target) || (num(item.target1) + num(item.target2) + num(item.target3));
+    var ac = num(item.actual) || (num(item.actual1) + num(item.actual2) + num(item.actual3));
+    return { target: tg, actual: ac };
+  }
+
+  function summarize(key, data) {
+    var lines = (Array.isArray(data && data.lines) ? data.lines : []).map(function (it) {
+      var t = lineTotals(it);
+      return { code: FACTORIES[key].lineCode(it.line), target: t.target, actual: t.actual };
+    });
+    var target = lines.reduce(function (a, l) { return a + l.target; }, 0);
+    var actual = lines.reduce(function (a, l) { return a + l.actual; }, 0);
+    return { key: key, lines: lines, target: target, actual: actual, planned: lines.filter(function (l) { return l.target > 0; }).length };
+  }
+
+  // คืบหน้าทั้งวัน (ยังไม่ใช่สถานะเทียบเป้า ณ ตอนนี้) → สีกลาง ๆ ครบเป้าแล้วเป็นสีเขียว
+  function barColor(p) { return p >= 100 ? "var(--ok)" : "#6366F1"; }
+
+  function renderFactoryCard(el, s, err) {
+    var f = FACTORIES[s ? s.key : el.dataset.key];
+    if (err) {
+      el.innerHTML = "<h3>" + esc(f.name) + "</h3><div class='err'>โหลดไม่สำเร็จ: " + esc(err.message || err) + "</div>";
+      return;
+    }
+    var p = s.target ? s.actual / s.target * 100 : 0;
+    el.innerHTML =
+      "<h3>" + esc(f.name) + "</h3><div class='note'>ตั้งเป้าแล้ว " + s.planned + " / " + s.lines.length + " ไลน์</div>" +
+      "<div class='big'>" + p.toFixed(1) + "%</div>" +
+      "<div class='kv'><span>ผลิตแล้ว</span><b>" + fmt(s.actual) + " ชิ้น</b></div>" +
+      "<div class='kv'><span>เป้าทั้งวัน</span><b>" + fmt(s.target) + " ชิ้น</b></div>" +
+      "<div class='track'><div class='fill' style='width:" + Math.min(100, p) + "%;background:" + barColor(p) + "'></div></div>" +
+      "<div class='lines'>" + s.lines.map(function (l) {
+        var lp = l.target ? l.actual / l.target * 100 : 0;
+        return "<button type='button' class='lineRow" + (l.target ? "" : " idle") + "' data-tab='" + s.key + "' data-line='" + esc(l.code) + "'>" +
+          "<span class='nm'>LINE " + esc(l.code) + "</span>" +
+          "<span class='mini'><i style='width:" + Math.min(100, lp) + "%;background:" + barColor(lp) + "'></i></span>" +
+          "<span class='num'>" + (l.target ? fmt(l.actual) + " / " + fmt(l.target) : "ยังไม่ตั้งเป้า") + "</span></button>";
+      }).join("") + "</div>";
+    el.querySelectorAll(".lineRow").forEach(function (b) {
+      b.addEventListener("click", function () { openFactoryLine(b.dataset.tab, b.dataset.line); });
+    });
+  }
+
+  function renderTotalCard(parts) {
+    var ok = parts.filter(Boolean);
+    var target = ok.reduce(function (a, s) { return a + s.target; }, 0);
+    var actual = ok.reduce(function (a, s) { return a + s.actual; }, 0);
+    var planned = ok.reduce(function (a, s) { return a + s.planned; }, 0);
+    var all = ok.reduce(function (a, s) { return a + s.lines.length; }, 0);
+    var p = target ? actual / target * 100 : 0;
+    $("cardAll").innerHTML =
+      "<h3>รวม 2 โรง</h3><div class='note'>ตั้งเป้าแล้ว " + planned + " / " + all + " ไลน์" + (ok.length < 2 ? " • ข้อมูลไม่ครบ" : "") + "</div>" +
+      "<div class='big'>" + p.toFixed(1) + "%</div>" +
+      "<div class='kv'><span>ผลิตแล้ว</span><b>" + fmt(actual) + " ชิ้น</b></div>" +
+      "<div class='kv'><span>เป้าทั้งวัน</span><b>" + fmt(target) + " ชิ้น</b></div>" +
+      "<div class='track'><div class='fill' style='width:" + Math.min(100, p) + "%;background:" + barColor(p) + "'></div></div>" +
+      ok.map(function (s) {
+        var sp = s.target ? s.actual / s.target * 100 : 0;
+        return "<div class='kv' style='margin-top:12px'><span>" + esc(FACTORIES[s.key].name) + "</span><b>" + fmt(s.actual) + " / " + fmt(s.target) + " (" + sp.toFixed(0) + "%)</b></div>";
+      }).join("");
+  }
+
+  var overviewLoading = false;
+  async function loadOverview() {
+    if (overviewLoading) return;
+    overviewLoading = true;
+    $("cardF1").dataset.key = "f1";
+    $("cardF2").dataset.key = "f2";
+    try {
+      var res = await Promise.allSettled([fetchSummary("f1"), fetchSummary("f2")]);
+      var parts = res.map(function (r, i) {
+        var key = i === 0 ? "f1" : "f2";
+        var card = $(i === 0 ? "cardF1" : "cardF2");
+        if (r.status === "fulfilled") {
+          var s = summarize(key, r.value);
+          renderFactoryCard(card, s);
+          return s;
+        }
+        renderFactoryCard(card, null, r.reason);
+        return null;
+      });
+      renderTotalCard(parts);
+      $("ovUpdated").innerText = "อัปเดตล่าสุด " + new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " น. • รีเฟรชเองทุก 1 นาที";
+    } finally {
+      overviewLoading = false;
+    }
+  }
+
+  // ===== เริ่ม: #f1 / #f2 / #all ในลิงก์ หรือแท็บล่าสุดที่เปิด =====
+  var start = (location.hash || "").replace("#", "") || lsGet("allDashTab") || "f1";
+  showTab(start);
+</script>
+</body>
+</html>
