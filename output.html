@@ -1509,12 +1509,28 @@
     }
   }
 
+  // V18: วันเดียวสลับได้สูงสุด 5 LOT (ค่าจริงมาจาก Apps Script: data.maxLots)
+  let MAX_LOTS_PER_DAY = 5;
+
+  // LOT ลำดับที่ 1–5 จากข้อมูล getTodayLine (lotNumber, lotNumber2 … lotNumber5)
+  function planLotsFromData_(data) {
+    const out = [];
+    if (!data) return out;
+    for (let i = 1; i <= 5; i++) {
+      const lot = normalizeLot_(i === 1 ? data.lotNumber : (data['lotNumber' + i] || data['lot' + i + 'Number']));
+      out.push({
+        index: i,
+        lot: lot,
+        hours: Number(i === 1 ? data.workingHours : data['workingHours' + i]) || 0,
+        target: Number(data['target' + i]) || 0,
+        model: (data.masterMap || {})[lot] || ''
+      });
+    }
+    return out;
+  }
+
   function getEditPlanLots_(data) {
-    return [
-      { index: 1, lot: normalizeLot_(data.lotNumber), hours: Number(data.workingHours) || 0, target: Number(data.target1) || 0, model: (data.masterMap || {})[normalizeLot_(data.lotNumber)] || '' },
-      { index: 2, lot: normalizeLot_(data.lotNumber2 || data.lot2Number), hours: Number(data.workingHours2) || 0, target: Number(data.target2) || 0, model: (data.masterMap || {})[normalizeLot_(data.lotNumber2 || data.lot2Number)] || '' },
-      { index: 3, lot: normalizeLot_(data.lotNumber3 || data.lot3Number), hours: Number(data.workingHours3) || 0, target: Number(data.target3) || 0, model: (data.masterMap || {})[normalizeLot_(data.lotNumber3 || data.lot3Number)] || '' }
-    ].filter(item => item.lot);
+    return planLotsFromData_(data).filter(item => item.lot);
   }
 
   async function loadEditPlan() {
@@ -1855,9 +1871,8 @@
       }
 
       activeLots = Array.isArray(data.lots) ? [...data.lots] : [];
-      const loadedLots = [data.lotNumber, data.lotNumber2 || data.lot2Number, data.lotNumber3 || data.lot3Number]
-        .map(normalizeLot_)
-        .filter(Boolean);
+      if (Number(data.maxLots) > 0) MAX_LOTS_PER_DAY = Number(data.maxLots);
+      const loadedLots = planLotsFromData_(data).map(item => item.lot).filter(Boolean);
       loadedLots.forEach(lot => {
         if (!activeLots.some(x => normalizeLot_(x) === lot)) activeLots.push(lot);
       });
@@ -1887,11 +1902,9 @@
         activeLots
       );
 
-      currentLotPlan = [
-        { lot: normalizeLot_(data.lotNumber), hours: Number(data.workingHours) || 0 },
-        { lot: normalizeLot_(data.lotNumber2 || data.lot2Number), hours: Number(data.workingHours2) || 0 },
-        { lot: normalizeLot_(data.lotNumber3 || data.lot3Number), hours: Number(data.workingHours3) || 0 }
-      ].filter(item => item.lot && item.hours > 0);
+      currentLotPlan = planLotsFromData_(data)
+        .map(item => ({ lot: item.lot, hours: item.hours }))
+        .filter(item => item.lot && item.hours > 0);
 
       currentActiveLot = normalizeLot_(data.currentLot) ||
         (currentLotSwitchHistory.length ? normalizeLot_(currentLotSwitchHistory[currentLotSwitchHistory.length - 1].to) : '') ||
@@ -2491,13 +2504,7 @@
   }
 
   function getUsedLotsFromState_(data) {
-    return [
-      data && data.lotNumber,
-      data && (data.lotNumber2 || data.lot2Number),
-      data && (data.lotNumber3 || data.lot3Number)
-    ]
-      .map(normalizeLot_)
-      .filter(Boolean);
+    return planLotsFromData_(data).map(item => item.lot).filter(Boolean);
   }
 
   function renderModalTypeOptions_() {
@@ -2977,8 +2984,8 @@
     const localUsedLots = activeLots.map(normalizeLot_).filter(Boolean);
     const isExistingLot = localUsedLots.includes(newLot);
 
-    if (!isExistingLot && localUsedLots.length >= 3) {
-      alert('วันนี้มีครบ 3 LOT แล้ว สามารถกลับ LOT เดิมได้ แต่เพิ่ม LOT ใหม่ลำดับที่ 4 ไม่ได้');
+    if (!isExistingLot && localUsedLots.length >= MAX_LOTS_PER_DAY) {
+      alert('วันนี้มีครบ ' + MAX_LOTS_PER_DAY + ' LOT แล้ว สามารถกลับ LOT เดิมได้ แต่เพิ่ม LOT ใหม่ลำดับที่ ' + (MAX_LOTS_PER_DAY + 1) + ' ไม่ได้');
       return;
     }
 

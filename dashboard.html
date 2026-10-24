@@ -642,7 +642,7 @@ async function runLotSearch(query){
 }
 function lotLinesToday_(lot){
   return (dashboardData.lines||[]).filter(function(item){
-    return [item.active_lot,item.lot_number,item.lot_number2,item.lot_number3]
+    return [item.active_lot,item.lot_number,item.lot_number2,item.lot_number3,item.lot_number4,item.lot_number5]
       .some(function(v){return String(v||"").trim().toUpperCase()===lot});
   }).map(function(item){return String(item.line)});
 }
@@ -719,6 +719,12 @@ function dashboardSignature_(data){
           lot_number3:x.lot_number3||"",
           model3:x.model3||"",
           target3:num(x.target3),
+          lot_number4:x.lot_number4||"",
+          model4:x.model4||"",
+          target4:num(x.target4),
+          lot_number5:x.lot_number5||"",
+          model5:x.model5||"",
+          target5:num(x.target5),
 
           hourly_data:x.hourly_data||{},
           hourly_reported:x.hourly_reported||{},
@@ -943,7 +949,8 @@ function blankLine(code){
     hourly_data:hourly,hourly_reported:reported,hourly_lot:lots,
     active_lot:"",active_model:"",active_smpl:"",active_po_target:0,active_cumulative_actual:0,
     manpower:null,load_in:null,remarks:[],
-    lot_number:"",model1:"",target1:0,lot_number2:"",model2:"",target2:0,lot_number3:"",model3:"",target3:0
+    lot_number:"",model1:"",target1:0,lot_number2:"",model2:"",target2:0,lot_number3:"",model3:"",target3:0,
+    lot_number4:"",model4:"",target4:0,lot_number5:"",model5:"",target5:0
   };
 }
 
@@ -963,7 +970,7 @@ function mergeRange(payloads,from,to){
       a.total_working_hours+=num(item.total_working_hours);
       if(num(item.target)>0)a.plan_days=num(a.plan_days)+1;
       if(item.active_due_date)a.active_due_date=item.active_due_date;
-      a.target1+=num(item.target1); a.target2+=num(item.target2); a.target3+=num(item.target3);
+      a.target1+=num(item.target1); a.target2+=num(item.target2); a.target3+=num(item.target3); a.target4+=num(item.target4); a.target5+=num(item.target5);
       TIME_SLOTS.forEach(function(s){
         a.hourly_data[s]+=num((item.hourly_data||{})[s]);
         if(item.hourly_reported&&item.hourly_reported[s])a.hourly_reported[s]=true;
@@ -978,6 +985,8 @@ function mergeRange(payloads,from,to){
       if(item.lot_number){a.lot_number=item.lot_number;a.model1=item.model1||a.model1}
       if(item.lot_number2){a.lot_number2=item.lot_number2;a.model2=item.model2||a.model2}
       if(item.lot_number3){a.lot_number3=item.lot_number3;a.model3=item.model3||a.model3}
+      if(item.lot_number4){a.lot_number4=item.lot_number4;a.model4=item.model4||a.model4}
+      if(item.lot_number5){a.lot_number5=item.lot_number5;a.model5=item.model5||a.model5}
       if(Array.isArray(item.remarks))a.remarks=a.remarks.concat(item.remarks);
     });
   });
@@ -1442,7 +1451,9 @@ function renderLotTable(item){
   var lots=[
     {lot:item.lot_number,label:item.model1,target:item.target1,type:item.type1,rate:item.rate1},
     {lot:item.lot_number2,label:item.model2,target:item.target2,type:item.type2,rate:item.rate2},
-    {lot:item.lot_number3,label:item.model3,target:item.target3,type:item.type3,rate:item.rate3}
+    {lot:item.lot_number3,label:item.model3,target:item.target3,type:item.type3,rate:item.rate3},
+    {lot:item.lot_number4,label:item.model4,target:item.target4,type:item.type4,rate:item.rate4},
+    {lot:item.lot_number5,label:item.model5,target:item.target5,type:item.type5,rate:item.rate5}
   ].filter(function(x){return !!x.lot});
 
   if(!lots.length){
