@@ -39,6 +39,13 @@
   .pill .clock{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;margin:0}
   .pill.btn:hover{background:rgba(255,255,255,.2)}
   .pill.btn:disabled{opacity:.35;cursor:not-allowed}
+  /* เลือกวันที่ครั้งเดียว ใช้กับทั้ง 2 โรง + แท็บรวม */
+  .pill.dates{gap:6px;padding:6px 10px}
+  .pill.dates input{background:rgba(255,255,255,.95);color:#0F172A;border:0;border-radius:10px;padding:5px 8px;font-size:12px;font-weight:600;height:32px;color-scheme:light}
+  .pill.dates .lbl{font-size:11px;color:rgba(255,255,255,.65);font-weight:600}
+  .pill.dates .today{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:10px;padding:0 10px;height:32px;font-size:11px;font-weight:700}
+  .pill.dates .today:hover{background:rgba(255,255,255,.2)}
+  .pill.dates .today.on{opacity:.45;cursor:default}
 
   /* ปุ่มสลับ โรง 1 | โรง 2 | รวม */
   .tabs{display:inline-grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;margin:10px 0 0;padding:3px;border-radius:13px;background:#fff;border:1px solid var(--line);box-shadow:0 10px 30px -24px rgba(15,23,42,.45)}
@@ -115,7 +122,13 @@
       </div>
     </div>
     <div class="hdRight">
-      <div class="pill"><span>📅</span><div><p class="d1" id="hdDate">-</p><p class="d2" id="hdDay">-</p></div></div>
+      <div class="pill dates" title="เลือกวันที่ครั้งเดียว ใช้กับโรง 1 โรง 2 และหน้ารวม">
+        <span>📅</span>
+        <input type="date" id="selFrom" aria-label="ตั้งแต่วันที่">
+        <span class="lbl">ถึง</span>
+        <input type="date" id="selTo" aria-label="ถึงวันที่ (เว้นว่าง = วันเดียว)">
+        <button type="button" class="today" id="selToday">วันนี้</button>
+      </div>
       <div class="pill"><span>🕒</span><p class="clock" id="hdClock">--:--:--</p></div>
       <button class="pill btn" id="searchBtn" type="button" title="ค้นหา LOT ในโรงที่เปิดอยู่">🔍</button>
       <div class="pill user"><span>👤</span><span class="d1">Guest User</span></div>
@@ -136,7 +149,7 @@
 
   <section class="overview" id="overview" aria-label="ภาพรวม 2 โรง">
     <div class="ovHead">
-      <h2>ภาพรวมวันนี้ • โรง 1 และ โรง 2</h2>
+      <h2 id="ovTitle">ภาพรวมวันนี้ • โรง 1 และ โรง 2</h2>
       <p id="ovUpdated">กำลังโหลด...</p>
     </div>
     <div class="grid3">
@@ -185,8 +198,6 @@
   // ===== หัว: วันที่ + นาฬิกา =====
   function tickClock() {
     var d = new Date();
-    $("hdDate").innerText = d.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
-    $("hdDay").innerText = d.toLocaleDateString("th-TH", { weekday: "long" });
     $("hdClock").innerText = d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
   tickClock();
@@ -226,6 +237,7 @@
         if (current === tab) $("frameLoading").classList.remove("show");
         syncScrollbar();
         schedulePreload();
+        syncFrameDate(tab);
         return;
       }
       setTimeout(poll, 80);
@@ -306,15 +318,107 @@
     })();
   }
 
+  // ===== วันที่ที่เลือก (ช่องเดียวด้านบน) → ส่งต่อให้ Dashboard ทั้ง 2 โรง + แท็บรวม =====
+  var SEL = { from: todayStr(), to: "" };
+  function selIsToday() { return SEL.from === todayStr() && !SEL.to; }
+  function selDates() {
+    if (!SEL.to || SEL.to === SEL.from) return [SEL.from];
+    var out = [], d = new Date(SEL.from + "T00:00:00"), end = new Date(SEL.to + "T00:00:00");
+    while (d <= end && out.length < 31) {
+      out.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"));
+      d.setDate(d.getDate() + 1);
+    }
+    return out;
+  }
+  function thDate(ymd) { return new Date(ymd + "T00:00:00").toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }); }
+  function selLabel() {
+    if (selIsToday()) return "วันนี้";
+    return SEL.to && SEL.to !== SEL.from ? thDate(SEL.from) + " – " + thDate(SEL.to) : thDate(SEL.from);
+  }
+  function paintPicker() {
+    $("selFrom").value = SEL.from;
+    $("selTo").value = SEL.to;
+    $("selTo").min = SEL.from;
+    $("selToday").classList.toggle("on", selIsToday());
+  }
+
+  // Dashboard ข้างใน: ซ่อนช่องวันที่ของตัวเอง แล้วตั้งวันที่ตามช่องด้านบน
+  // (เรียกฟังก์ชันเดิมของแต่ละโรง — ไม่ได้แก้โค้ด Dashboard โรง 1 / โรง 2)
+  var frameSyncTimers = {};
+  function syncFrameDate(tab) {
+    var f = frameOf(tab);
+    if (!f || !f.getAttribute("src")) return;
+    clearTimeout(frameSyncTimers[tab]);
+    var idleCount = 0, tries = 0;
+    (function poll() {
+      var w, d, from, to, ov;
+      try { w = f.contentWindow; d = f.contentDocument; } catch (e) { return; }
+      from = d && d.getElementById("datePicker");
+      to = d && d.getElementById("datePickerTo");
+      if (from && to) {
+        var box = from.closest(".rounded-2xl");
+        if (box && box.style.display !== "none") box.style.display = "none";
+      }
+      ov = d && d.getElementById("dashboardLoadingOverlay");
+      var busy = !from || !to || d.readyState !== "complete" || (ov && ov.classList.contains("show")) ||
+        (tab === "f1" ? typeof w.onDateChange !== "function" : !(w.dashboardData && w.dashboardData.date));
+      idleCount = busy ? 0 : idleCount + 1;
+      if (idleCount < 2) { if (++tries < 400) frameSyncTimers[tab] = setTimeout(poll, 150); return; }
+      if (from.value === SEL.from && (to.value || "") === SEL.to) return;
+      from.value = SEL.from;
+      to.value = SEL.to;
+      if (tab === "f1") w.onDateChange();
+      else to.dispatchEvent(new Event("change"));
+    })();
+  }
+
+  function setSel(from, to) {
+    var today = todayStr();
+    from = from || today;
+    to = to && to > from ? to : "";
+    if (to) {
+      var max = new Date(from + "T00:00:00"); max.setDate(max.getDate() + 30);
+      var maxS = max.getFullYear() + "-" + String(max.getMonth() + 1).padStart(2, "0") + "-" + String(max.getDate()).padStart(2, "0");
+      if (to > maxS) { alert("เลือกช่วงวันที่ได้สูงสุด 31 วัน"); to = maxS; }
+    }
+    if (from === SEL.from && to === SEL.to) { paintPicker(); return; }
+    SEL = { from: from, to: to };
+    paintPicker();
+    ["f1", "f2"].forEach(syncFrameDate);
+    if (current === "all") loadOverview(true);
+  }
+  $("selFrom").addEventListener("change", function () { setSel($("selFrom").value, ""); });
+  $("selTo").addEventListener("change", function () { setSel(SEL.from, $("selTo").value); });
+  $("selToday").addEventListener("click", function () { setSel(todayStr(), ""); });
+  paintPicker();
+
   // ===== แท็บ "รวม": ดึงสรุปของแต่ละโรงจาก Apps Script ของโรงนั้นเอง =====
-  async function fetchSummary(key) {
-    var url = FACTORIES[key].api + "?action=getDailySummary&date=" + todayStr() + "&_=" + Date.now();
+  async function fetchSummary(key, date) {
+    var url = FACTORIES[key].api + "?action=getDailySummary&date=" + date + "&_=" + Date.now();
     var res = await fetch(url, { cache: "no-store", redirect: "follow" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     var data = JSON.parse(await res.text());
     if (data && data.status === "error") throw new Error(data.error || "โหลดไม่สำเร็จ");
     return data;
   }
+
+  // ดึงทุกวันในช่วงที่เลือก แล้วรวมยอดรายไลน์ (วันเดียว = ข้อมูลเดิมทั้งก้อน)
+  async function fetchFactory(key) {
+    var dates = selDates();
+    var list = await Promise.all(dates.map(function (d) { return fetchSummary(key, d); }));
+    if (list.length === 1) return list[0];
+    var map = {}, order = [];
+    list.forEach(function (data) {
+      (Array.isArray(data && data.lines) ? data.lines : []).forEach(function (it) {
+        var code = FACTORIES[key].lineCode(it.line);
+        if (!map[code]) { map[code] = { line: it.line, target: 0, actual: 0 }; order.push(code); }
+        var t = lineTotals(it);
+        map[code].target += t.target; map[code].actual += t.actual;
+      });
+    });
+    return { __range: true, lines: order.map(function (c) { return map[c]; }) };
+  }
+  function nowLabel() { return selIsToday() ? "เป้า ณ ตอนนี้" : "เป้าตามรอบที่บันทึก"; }
 
   function lineTotals(item) {
     var tg = num(item.target) || (num(item.target1) + num(item.target2) + num(item.target3));
@@ -333,7 +437,7 @@
     var people = lines.reduce(function (a, l) { return a + (l.target > 0 ? l.people : 0); }, 0);
     var target = lines.reduce(function (a, l) { return a + l.target; }, 0);
     var actual = lines.reduce(function (a, l) { return a + l.actual; }, 0);
-    return { key: key, lines: lines, target: target, actual: actual, people: people, planned: lines.filter(function (l) { return l.target > 0; }).length };
+    return { key: key, range: !!(data && data.__range), lines: lines, target: target, actual: actual, people: people, planned: lines.filter(function (l) { return l.target > 0; }).length };
   }
 
   var STATUS_COLOR = { ok: "var(--ok)", warn: "var(--warn)", bad: "var(--bad)", idle: "#CBD5E1" };
@@ -372,7 +476,7 @@
     try {
       var w = frameOf("f2").contentWindow;
       var d = w && w.dashboardData;
-      if (w && typeof w.targetNowFor === "function" && d && d.date === todayStr() && !d.isRange) return w;
+      if (w && typeof w.targetNowFor === "function" && d && d.date === SEL.from && !d.isRange) return w;
     } catch (e) {}
     return null;
   }
@@ -381,8 +485,8 @@
     var w = f2Win();
     if (!w) return null;
     try {
-      var st = w.lineStatus(it, todayStr());
-      return { now: num(w.targetNowFor(it, todayStr())), key: st.key === "idle" && num(it.actual) > 0 ? "ok" : st.key };
+      var st = w.lineStatus(it, SEL.from);
+      return { now: num(w.targetNowFor(it, SEL.from)), key: st.key === "idle" && num(it.actual) > 0 ? "ok" : st.key };
     } catch (e) { return null; }
   }
   // ระดับโรง / รวม 2 โรง: สีเดิม (ม่วง ครบเป้าทั้งวันแล้วเป็นเขียว) — เกณฑ์เขียว/ส้ม/แดง ใช้เฉพาะแถบรายไลน์
@@ -396,7 +500,18 @@
       ? "<div class='fill' style='width:" + w + "%;background:" + color + "'></div>"
       : "<i class='solid' style='width:" + w + "%;background:" + color + "'></i>");
   }
+  // ดูหลายวัน: ไม่มี "เป้าตอนนี้" → สีรายไลน์เทียบเป้ารวมของช่วง (เกณฑ์เดียวกับที่ Dashboard แต่ละโรงใช้ตอนดูหลายวัน)
+  function rangeKey(key, target, actual) {
+    if (target <= 0) return actual > 0 ? "ok" : "idle";
+    if (key === "f1") { var d = actual - target; return d >= -10 ? "ok" : d >= -20 ? "warn" : "bad"; }
+    return actual >= target ? "ok" : actual / target >= 0.9 ? "warn" : "bad";
+  }
   function applyNow(s) {
+    if (s.range) {
+      s.lines.forEach(function (l) { l.now = 0; l.key = rangeKey(s.key, l.target, l.actual); });
+      s.now = 0; s.ready = true; s.st = sumKey(0, s.actual, s.target);
+      return s;
+    }
     var ready = true;
     s.now = 0;
     s.lines.forEach(function (l) {
@@ -423,17 +538,17 @@
     }
     var p = s.target ? s.actual / s.target * 100 : 0;
     el.innerHTML =
-      "<div class='cardHead'><div><h3>" + esc(f.name) + "</h3><div class='note'>ตั้งเป้าแล้ว " + s.planned + " / " + s.lines.length + " ไลน์</div></div>" +
-      peopleBox(s.people, "กำลังคน" + esc(f.name)) + "</div>" +
+      "<div class='cardHead'><div><h3>" + esc(f.name) + "</h3><div class='note'>" + (s.range ? "มีเป้า " : "ตั้งเป้าแล้ว ") + s.planned + " / " + s.lines.length + " ไลน์</div></div>" +
+      (s.range ? "" : peopleBox(s.people, "กำลังคน" + esc(f.name))) + "</div>" +
       "<div class='big'>" + p.toFixed(1) + "%</div>" +
       "<div class='kv'><span>ผลิตแล้ว</span><b>" + fmt(s.actual) + " ชิ้น</b></div>" +
-      "<div class='kv'><span>เป้าทั้งวัน</span><b>" + fmt(s.target) + " ชิ้น</b></div>" +
-      "<div class='kv'><span>เป้า ณ ตอนนี้</span><b>" + (s.ready ? fmt(s.now) + " ชิ้น" : "กำลังคำนวณ...") + "</b></div>" +
+      "<div class='kv'><span>" + (s.range ? "เป้ารวมทั้งช่วง" : "เป้าทั้งวัน") + "</span><b>" + fmt(s.target) + " ชิ้น</b></div>" +
+      (s.range ? "" : "<div class='kv'><span>" + nowLabel() + "</span><b>" + (s.ready ? fmt(s.now) + " ชิ้น" : "กำลังคำนวณ...") + "</b></div>") +
       "<div class='track'>" + twoLayer("fill", s.target, s.actual, s.now, s.st) + "</div>" +
       "<div class='lines'>" + s.lines.map(function (l) {
         return "<button type='button' class='lineRow" + (l.target ? "" : " idle") + "' data-tab='" + s.key + "' data-line='" + esc(l.code) + "'>" +
           "<span class='nm'>LINE " + esc(l.code) + "</span>" +
-          "<span class='mini' title='" + (l.key && l.target ? "เป้าตอนนี้ " + fmt(l.now) + " ชิ้น" : "") + "'>" + twoLayer("mini", l.target, l.actual, l.now, l.target ? l.key : "idle") + "</span>" +
+          "<span class='mini' title='" + (!s.range && l.key && l.target ? nowLabel() + " " + fmt(l.now) + " ชิ้น" : "") + "'>" + twoLayer("mini", l.target, l.actual, l.now, l.target ? l.key : "idle") + "</span>" +
           "<span class='num'>" + (l.target ? fmt(l.actual) + " / " + fmt(l.target) : "ยังไม่ตั้งเป้า") + "</span></button>";
       }).join("") + "</div>";
     el.querySelectorAll(".lineRow").forEach(function (b) {
@@ -449,19 +564,20 @@
     var all = ok.reduce(function (a, s) { return a + s.lines.length; }, 0);
     var people = ok.reduce(function (a, s) { return a + s.people; }, 0);
     var ready = ok.length > 0 && ok.every(function (s) { return s.ready; });
+    var range = ok.some(function (s) { return s.range; });
     var now = ok.reduce(function (a, s) { return a + (s.now || 0); }, 0);
     var p = target ? actual / target * 100 : 0;
     $("cardAll").innerHTML =
-      "<div class='cardHead'><div><h3>รวม 2 โรง</h3><div class='note'>ตั้งเป้าแล้ว " + planned + " / " + all + " ไลน์" + (ok.length < 2 ? " • ข้อมูลไม่ครบ" : "") + "</div></div>" +
-      peopleBox(people, "กำลังคนรวม 2 โรง") + "</div>" +
+      "<div class='cardHead'><div><h3>รวม 2 โรง</h3><div class='note'>" + (range ? "มีเป้า " : "ตั้งเป้าแล้ว ") + planned + " / " + all + " ไลน์" + (ok.length < 2 ? " • ข้อมูลไม่ครบ" : "") + "</div></div>" +
+      (range ? "" : peopleBox(people, "กำลังคนรวม 2 โรง")) + "</div>" +
       "<div class='big'>" + p.toFixed(1) + "%</div>" +
       "<div class='kv'><span>ผลิตแล้ว</span><b>" + fmt(actual) + " ชิ้น</b></div>" +
-      "<div class='kv'><span>เป้าทั้งวัน</span><b>" + fmt(target) + " ชิ้น</b></div>" +
-      "<div class='kv'><span>เป้า ณ ตอนนี้</span><b>" + (ready ? fmt(now) + " ชิ้น" : "กำลังคำนวณ...") + "</b></div>" +
+      "<div class='kv'><span>" + (range ? "เป้ารวมทั้งช่วง" : "เป้าทั้งวัน") + "</span><b>" + fmt(target) + " ชิ้น</b></div>" +
+      (range ? "" : "<div class='kv'><span>" + nowLabel() + "</span><b>" + (ready ? fmt(now) + " ชิ้น" : "กำลังคำนวณ...") + "</b></div>") +
       "<div class='track'>" + twoLayer("fill", target, actual, now, ready ? sumKey(now, actual, target) : null) + "</div>" +
       ok.map(function (s) {
         var sp = s.target ? s.actual / s.target * 100 : 0;
-        return "<div class='kv' style='margin-top:12px'><span>" + esc(FACTORIES[s.key].name) + " • " + fmt(s.people) + " คน</span><b>" + fmt(s.actual) + " / " + fmt(s.target) + " (" + sp.toFixed(0) + "%)</b></div>";
+        return "<div class='kv' style='margin-top:12px'><span>" + esc(FACTORIES[s.key].name) + (s.range ? "" : " • " + fmt(s.people) + " คน") + "</span><b>" + fmt(s.actual) + " / " + fmt(s.target) + " (" + sp.toFixed(0) + "%)</b></div>";
       }).join("");
   }
 
@@ -495,18 +611,24 @@
   }
 
   var overviewLoading = false;
-  async function loadOverview() {
-    if (overviewLoading) return;
+  var overviewSeq = 0;
+  async function loadOverview(force) {
+    if (overviewLoading && !force) return;
     overviewLoading = true;
+    var seq = ++overviewSeq;
+    $("ovTitle").innerText = "ภาพรวม" + (selIsToday() ? "" : " ") + selLabel() + " • โรง 1 และ โรง 2";
+    if (force) $("ovUpdated").innerText = "กำลังโหลด " + selLabel() + "...";
     $("cardF1").dataset.key = "f1";
     $("cardF2").dataset.key = "f2";
     try {
-      lastRes = await Promise.allSettled([fetchSummary("f1"), fetchSummary("f2")]);
+      var res = await Promise.allSettled([fetchFactory("f1"), fetchFactory("f2")]);
+      if (seq !== overviewSeq) return; // เปลี่ยนวันที่ระหว่างโหลด → ทิ้งผลเก่า
+      lastRes = res;
       var parts = renderOverview();
       if (parts[1] && !parts[1].ready) waitF2ThenRender();
       $("ovUpdated").innerText = "อัปเดตล่าสุด " + new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " น. • รีเฟรชเองทุก 1 นาที";
     } finally {
-      overviewLoading = false;
+      if (seq === overviewSeq) overviewLoading = false;
       schedulePreload();
     }
   }
