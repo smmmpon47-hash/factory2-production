@@ -14,6 +14,15 @@
   window.__DASH_EMBED__=/(?:^|[?&])embed=1(?:&|$)/.test(location.search);
   if(window.__DASH_EMBED__)document.documentElement.classList.add("is-embed");
 </script>
+<script>
+  // โหมดกลางคืน: ค่าที่เลือกไว้ในเครื่องนี้ก่อน ไม่งั้นตามโหมดของเครื่อง
+  (function(){
+    var t=null;
+    try{t=localStorage.getItem("dashTheme")}catch(e){}
+    if(t!=="dark"&&t!=="light")t=(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";
+    if(t==="dark")document.documentElement.classList.add("dark");
+  })();
+</script>
 <style>
   .is-embed .shell > header{display:none !important}
   .is-embed .shell{padding-top:12px !important}
@@ -104,6 +113,110 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
 #planTip.show{opacity:1;transform:scale(1)}
 @media (max-width:1023px){.floorLayout{grid-template-columns:1fr}.lineShortcutBody{grid-template-columns:repeat(3,1fr)}}
 </style>
+<style>
+/* ================= NIGHT MODE (html.dark) — ลุคเดียวกับ Dashboard โรง 1, โหมดสว่างไม่ถูกแตะ ================= */
+html.dark{
+  color-scheme:dark;
+  --d-bg:#06080E; --d-card:#0D121D; --d-card2:#0A0E17; --d-line:rgba(255,255,255,.06); --d-line2:rgba(255,255,255,.10);
+  --d-hi:#E6EDF6; --d-t1:#CBD5E1; --d-t2:#A3B1C6; --d-t3:#8292A9; --d-t4:#64748B;
+  --gold:#D6B97B; --gold2:#B8975A; --gold-soft:rgba(214,185,123,.12);
+  --navy:#E2E8F0;
+}
+html.dark body{
+  color:var(--d-hi);
+  background:
+    radial-gradient(1200px 520px at 15% -8%, rgba(56,78,130,.22), transparent 60%),
+    radial-gradient(900px 420px at 100% 0%, rgba(214,185,123,.06), transparent 60%),
+    var(--d-bg);
+  background-attachment:fixed;
+}
+html.dark .card, html.dark .floorMain, html.dark .guideTitle, html.dark .lineShortcutBody, html.dark .guideBody{
+  background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,0) 40%), var(--d-card);
+  border:1px solid var(--d-line); color:var(--d-hi);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 24px 48px -32px rgba(0,0,0,.95);
+}
+html.dark .soft{box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 24px 48px -32px rgba(0,0,0,.95)}
+html.dark .shell > header{
+  background:linear-gradient(120deg,#0B0F19 0%,#111A2C 60%,#16223A 100%) !important;
+  border:1px solid var(--d-line);
+  box-shadow:inset 0 -1px 0 rgba(214,185,123,.35), 0 24px 48px -32px rgba(0,0,0,.95);
+}
+html.dark .shell > header h1{letter-spacing:.02em}
+html.dark .shell > header .border-white\/15{border-color:rgba(255,255,255,.08)}
+html.dark .shell > header .bg-white\/10{background-color:rgba(255,255,255,.04)}
+html.dark h2.font-bold{letter-spacing:.015em}
+
+/* พื้น / ขอบ */
+html.dark .bg-white{background-color:var(--d-card)}
+html.dark .bg-slate-50, html.dark .bg-slate-50\/70{background-color:var(--d-card2)}
+html.dark .bg-slate-100{background-color:rgba(255,255,255,.05)}
+html.dark .bg-slate-200, html.dark .hover\:bg-slate-200:hover{background-color:#1F2D44}
+html.dark .bg-slate-300{background-color:#334155}
+html.dark .border-slate-100{border-color:var(--d-line)}
+html.dark .border-slate-200{border-color:var(--d-line2)}
+html.dark .progressTrack{background:rgba(255,255,255,.06)}
+
+/* ปุ่ม/แท็บที่เลือกอยู่ = แชมเปญโกลด์ */
+html.dark .bg-slate-900, html.dark .bg-slate-800{
+  background:linear-gradient(180deg,var(--gold),var(--gold2)); color:#14110A; box-shadow:0 6px 16px -10px rgba(214,185,123,.7);
+}
+html.dark .bg-slate-900.text-white, html.dark .bg-slate-800.text-white{color:#14110A}
+html.dark .lineSelBtn{background:var(--d-card2);border-color:var(--d-line2)}
+html.dark .lineSelBtn:hover{background:var(--gold-soft);border-color:var(--gold2)}
+html.dark .lineSelBtn.active{background:var(--gold-soft);border-color:var(--gold);box-shadow:0 0 0 3px rgba(214,185,123,.14)}
+html.dark .lineCard.border-indigo-300{border-color:var(--gold2)}
+html.dark .ring-indigo-100{--tw-ring-color:rgba(214,185,123,.25)}
+html.dark .hover\:border-indigo-200:hover{border-color:rgba(214,185,123,.4)}
+html.dark .focus\:border-indigo-400:focus{border-color:var(--gold2)}
+html.dark .bg-indigo-600{background-color:var(--gold2);color:#14110A}
+html.dark .hover\:bg-indigo-700:hover{background-color:var(--gold)}
+
+/* ตัวหนังสือ */
+html.dark .text-slate-800, html.dark .hover\:text-slate-800:hover{color:var(--d-hi)}
+html.dark .text-slate-700{color:var(--d-t1)}
+html.dark .text-slate-600{color:var(--d-t2)}
+html.dark .text-slate-500{color:var(--d-t3)}
+html.dark .text-slate-400, html.dark .metricLabel{color:var(--d-t4)}
+html.dark .text-slate-300{color:#475569}
+
+/* สีสถานะ: สว่างขึ้นให้อ่านง่ายบนพื้นมืด ความหมายเดิม */
+html.dark .text-emerald-500, html.dark .text-emerald-600{color:#34D399} html.dark .text-emerald-700, html.dark .text-emerald-800{color:#6EE7B7}
+html.dark .text-rose-500, html.dark .text-rose-600{color:#FB7185} html.dark .text-rose-700{color:#FDA4AF}
+html.dark .text-amber-600{color:#FBBF24} html.dark .text-amber-700, html.dark .text-amber-800{color:#FCD34D}
+html.dark .text-amber-700\/60{color:rgba(252,211,77,.6)} html.dark .text-amber-900\/80{color:rgba(253,230,138,.85)}
+html.dark .text-indigo-400, html.dark .text-indigo-500{color:#A5B4FC}
+html.dark .text-indigo-600, html.dark .text-indigo-700{color:#C9B489}
+html.dark .text-sky-600{color:#7DD3FC}
+
+html.dark .bg-emerald-50, html.dark .bg-emerald-100{background-color:rgba(16,185,129,.13)}
+html.dark .bg-rose-50{background-color:rgba(244,63,94,.13)}
+html.dark .bg-amber-50, html.dark .bg-amber-50\/70, html.dark .bg-amber-100{background-color:rgba(245,158,11,.13)}
+html.dark .bg-indigo-50{background-color:rgba(99,102,241,.16)}
+html.dark .bg-sky-50{background-color:rgba(14,165,233,.12)}
+html.dark .border-emerald-100{border-color:rgba(16,185,129,.3)}
+html.dark .border-amber-100{border-color:rgba(245,158,11,.3)}
+html.dark .border-indigo-100{border-color:rgba(99,102,241,.35)}
+
+/* แถบความคืบหน้าทั้งโรง */
+html.dark #kpiBar{background:linear-gradient(90deg,var(--gold2),var(--gold))}
+
+/* ส่วนที่เขียนสีเองในหน้า */
+html.dark .planWrap{border-color:var(--d-line2);box-shadow:0 30px 60px -36px rgba(0,0,0,1)}
+html.dark .guideNo{background:var(--gold-soft);color:var(--gold)}
+html.dark #planTip{background:#16213A;color:var(--d-hi);box-shadow:0 18px 40px -16px rgba(0,0,0,.9)}
+html.dark .lotModalBack{background:rgba(2,6,15,.6)}
+html.dark #dashboardLoadingOverlay{background:rgba(2,6,15,.55)}
+html.dark .dashboardLoadingCard{background:rgba(13,18,29,.97);border-color:var(--d-line2)}
+html.dark .dashboardLoadingBar{background:#1F2D44}
+html.dark .dashboardSpinner{border-color:#1F2D44;border-top-color:var(--gold)}
+html.dark .dashboardLoadingPercent{color:var(--gold)}
+html.dark input, html.dark select{color-scheme:dark}
+html.dark input:not([type=checkbox]):not([type=radio]), html.dark select{background-color:rgba(255,255,255,.03);color:var(--d-hi);border-color:var(--d-line2)}
+html.dark ::placeholder{color:var(--d-t4)}
+html.dark ::selection{background:rgba(214,185,123,.35)}
+
+#themeBtn .ico-sun{display:none} html.dark #themeBtn .ico-sun{display:inline} html.dark #themeBtn .ico-moon{display:none}
+</style>
 </head>
 <body class="pb-10">
 
@@ -151,6 +264,7 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
           <p id="hdClock" class="text-sm font-bold tabular-nums">--:--:--</p>
         </div>
         <button onclick="openLotSearch()" class="bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl px-3 text-sm transition h-[48px]" title="ค้นหา LOT">🔍</button>
+        <button id="themeBtn" type="button" onclick="toggleDashTheme()" class="bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl px-3 text-sm transition h-[48px]" title="สลับโหมดกลางวัน / กลางคืน" aria-label="สลับโหมดกลางวัน / กลางคืน"><span class="ico-moon">🌙</span><span class="ico-sun">☀️</span></button>
         <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-2 h-[48px]">
           <span class="text-sm">👤</span>
           <span id="displayName" class="text-xs font-semibold">Guest User</span>
@@ -443,6 +557,44 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
 
 <script>
 Chart.register(ChartDataLabels);
+
+/* ---------- NIGHT MODE: สีกราฟตามโหมด ---------- */
+function isDashDark(){return document.documentElement.classList.contains("dark")}
+function dashGrid(){return isDashDark()?"rgba(148,163,184,0.10)":"#F1F5F9"}
+function dashTick(){return isDashDark()?"#8292A9":"#666"}
+function dashBorder(){return isDashDark()?"rgba(148,163,184,0.10)":"rgba(0,0,0,0.1)"}
+function applyDashChartTheme(){
+  Chart.defaults.color=dashTick();
+  Chart.defaults.borderColor=dashBorder();
+  [factoryChart,hourlyChart,cumulativeChart].forEach(function(ch){
+    if(!ch)return;
+    var sc=(ch.options&&ch.options.scales)||{};
+    Object.keys(sc).forEach(function(k){
+      var axis=sc[k];
+      if(axis.grid&&axis.grid.display!==false)axis.grid.color=ch===factoryChart?dashGrid():dashBorder();
+      if(axis.ticks)axis.ticks.color=dashTick();
+    });
+    var lg=ch.options&&ch.options.plugins&&ch.options.plugins.legend;
+    if(lg&&lg.labels)lg.labels.color=dashTick();
+    ch.update("none");
+  });
+}
+function toggleDashTheme(){
+  var dark=!isDashDark();
+  document.documentElement.classList.toggle("dark",dark);
+  try{localStorage.setItem("dashTheme",dark?"dark":"light")}catch(e){}
+  applyDashChartTheme();
+}
+Chart.defaults.color=dashTick();
+Chart.defaults.borderColor=dashBorder();
+// ยังไม่เคยเลือกเอง → เปลี่ยนตามโหมดของเครื่อง
+try{
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change",function(e){
+    var saved=null;try{saved=localStorage.getItem("dashTheme")}catch(_){}
+    if(saved==="dark"||saved==="light")return;
+    document.documentElement.classList.toggle("dark",e.matches);applyDashChartTheme();
+  });
+}catch(e){}
 
 var breakShadePlugin = {
   id: "breakShade",
@@ -1166,7 +1318,7 @@ function renderDailyChart(lines,remember){
       },
       scales:{
         x:{stacked:stacked,grid:{display:false},ticks:{font:{family:"Kanit",size:11}}},
-        y:{stacked:stacked,beginAtZero:true,grid:{color:"#F1F5F9"},ticks:{font:{family:"Kanit",size:10}}}
+        y:{stacked:stacked,beginAtZero:true,grid:{color:dashGrid()},ticks:{font:{family:"Kanit",size:10}}}
       }
     }
   });
@@ -1244,6 +1396,7 @@ function renderCards(lines){
     html+='<div class="font-semibold text-slate-500">ผลิตจริง/ชม. <span class="ml-1 font-extrabold text-slate-800">'+fmt(m.avg)+'</span></div>';
     html+='<div class="font-semibold text-slate-500">เป้า/ชม. <span class="ml-1 font-extrabold text-slate-800">'+fmt(currentRateOf(item))+'</span>'+(item.current_type?'<span class="ml-1 text-[10px] font-semibold text-slate-400">'+esc(item.current_type)+'</span>':'')+'</div>';
     if(item.manpower!==null&&item.manpower!==undefined)html+='<div class="font-semibold text-slate-500">กำลังคน <span class="ml-1 font-extrabold text-indigo-600">'+esc(item.manpower)+' คน</span></div>';
+    if(lot)html+='<div class="hidden font-semibold text-slate-500" data-lot-shipment="'+esc(lot)+'">Shipment <span class="ml-1 font-extrabold text-sky-600"></span></div>';
     html+='</div></div>';
 
     html+='<div class="flex items-center gap-2 pt-4 mt-auto">';
@@ -1256,6 +1409,41 @@ function renderCards(lines){
 
   Array.prototype.forEach.call(c.querySelectorAll(".lineCard"),function(card){
     card.addEventListener("click",function(){openLine(card.getAttribute("data-line"))});
+  });
+  void hydrateCardShipments_();
+}
+
+// Shipment = กำหนดส่งมอบของ LOT ใน Master_Work (ดึงผ่าน searchLot ตัวเดียวกับหน้าค้นหา LOT)
+// ดึงครั้งเดียวต่อ LOT ต่อการเปิดหน้า แล้วจำไว้ใช้ตอนการ์ดรีเฟรช
+var lotShipmentCache={};
+function lotShipment_(lot){
+  var key=String(lot||"").trim().toUpperCase().replace(/\s+/g,"");
+  if(!key)return Promise.resolve("");
+  if(!lotShipmentCache[key]){
+    lotShipmentCache[key]=fetch(GAS_API_URL+"?action=searchLot&lot="+encodeURIComponent(key)+"&_="+Date.now(),{cache:"no-store"})
+      .then(function(res){return res.json()})
+      .then(function(d){return d&&d.found&&d.dueDate?String(d.dueDate).trim():""})
+      .catch(function(){delete lotShipmentCache[key];return ""});
+  }
+  return lotShipmentCache[key];
+}
+function formatShipmentDate_(v){
+  var s=String(v||"").trim();
+  var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m&&/T/.test(s)){
+    var d=new Date(s);
+    if(!isNaN(d))return d.toLocaleDateString("en-GB",{timeZone:"Asia/Bangkok"});
+  }
+  return m?(m[3]+"/"+m[2]+"/"+m[1]):s;
+}
+function hydrateCardShipments_(){
+  Array.prototype.forEach.call(document.querySelectorAll("[data-lot-shipment]"),function(node){
+    lotShipment_(node.getAttribute("data-lot-shipment")).then(function(v){
+      var date=formatShipmentDate_(v);
+      if(!date||!node.isConnected)return;
+      node.querySelector("span").textContent=date;
+      node.classList.remove("hidden");
+    });
   });
 }
 
