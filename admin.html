@@ -112,6 +112,15 @@
     .sub:first-child { margin-top: 0; }
     .row-inline { display: flex; gap: 8px; align-items: center; }
     .help { color: var(--muted); font-size: .8rem; line-height: 1.45; margin-top: 8px; }
+    .row-inline.wrap { flex-wrap: wrap; }
+    .lot-tl { list-style: none; margin: 4px 0 0; padding: 0 0 0 14px; border-left: 2px solid #cbd5e1; display: flex; flex-direction: column; gap: 6px; font-size: .84rem; }
+    .lot-tl li { position: relative; }
+    .lot-tl li::before { content: ""; position: absolute; left: -20px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--teal); }
+    .lot-tl b { font-variant-numeric: tabular-nums; margin-right: 6px; }
+    .lot-tl small { color: var(--muted); font-weight: 600; }
+    .sw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .sw-grid label { display: flex; flex-direction: column; gap: 4px; font-size: .76rem; font-weight: 800; color: var(--ink-2); min-width: 0; }
+    .sw-grid .inp { width: 100%; }
     .warn { background: var(--amber-soft); border: 1px solid var(--amber-line); color: var(--amber); border-radius: 10px; padding: 8px 10px; font-size: .84rem; font-weight: 700; margin-top: 10px; }
 
     /* ---------- save bar ---------- */
@@ -424,10 +433,12 @@
         </div>
         <div>
           ${renderPlanCard(lots)}
+          ${renderLotCard(lots)}
           ${renderManpowerCard()}
         </div>
       </div>`;
     updateSum();
+    if ($('swSlot')) swPreview();
   }
 
   function renderSlotRows() {
@@ -581,6 +592,128 @@ ${changes.join('\n')}`)) return;
     p.lots.forEach(x => { const t = findType(x.type); lotTypes[x.lot] = { type: x.type, rate: t.manual ? Number(x.rate) : t.rate }; });
     const r = await act(() => post({ action: 'MAINT_UPDATE_PLAN', line: day.line, date: day.date, totalWorkingHours: Number(p.hours), startTime: p.start || '', lotTypes: lotTypes }),
       r => r.changed ? `บันทึกแผนแล้ว • เป้ารวมใหม่ ${fmtNum(r.totalTarget)} ชิ้น` : 'ไม่มีอะไรเปลี่ยน');
+    if (r) await loadDay();
+  }
+
+  /* LOT: แก้เลข LOT ที่กรอกผิด / เพิ่มจุดสลับรุ่นที่ลืมกด (แบบโรง 1) */
+  const MAX_LOTS = 5;
+  const lotModel = lot => (day.masterMap || {})[lot] && (day.masterMap || {})[lot] !== lot ? day.masterMap[lot] : '';
+  function workSlots() { return day.slots.filter(s => !s.isBreak); }
+  function renderLotCard(lots) {
+    const ws = workSlots();
+    const switches = (day.history || []).filter(x => ws.some(s => s.slot === x.slot));
+    const swSet = new Set(switches.map(x => x.slot));
+    const first = ws.length ? ws[0].lot : (day.lot1 || '');
+    const timeline = [`<li><b>${esc(ws.length ? ws[0].slot.split('-')[0] : '')}</b> เริ่มวัน · ${esc(first || '-')} <small>${esc(lotModel(first))}</small></li>`]
+      .concat(switches.map(x => `<li><b>${esc(x.slot.split('-')[0])}</b> สลับเป็น ${esc(x.to)} <small>${esc(lotModel(x.to))}</small></li>`)).join('');
+    const slotOpts = ws.slice(1).filter(s => !swSet.has(s.slot))
+      .map(s => `<option value="${esc(s.slot)}">${esc(s.slot)} · ตอนนี้ ${esc(s.lot || '-')}${s.saved ? ' · มียอด' : ''}</option>`).join('');
+    const typeOpts = `<option value="">ตาม Master_Work</option>` + productTypes.filter(t => t.active)
+      .map(t => `<option value="${esc(t.name)}">${esc(t.name)}${t.manual ? ' (กรอกเอง)' : ' · ' + t.rate}</option>`).join('');
+    return `<div class="card" id="lotCard">
+      <h3>LOT / สลับรุ่น <span class="note">ช่องที่เลือก = ชั่วโมงแรกของ LOT ใหม่ เหมือนกดสลับในฟอร์ม</span></h3>
+      <ul class="lot-tl">${timeline}</ul>
+
+      <div class="sub">✏️ แก้เลข LOT (กรอกผิด)</div>
+      <div class="row-inline wrap">
+        <select class="inp" id="renOld" style="width:auto">${lots.map(l => `<option value="${esc(l.lot)}">${esc(l.lot)}${l.model && l.model !== l.lot ? ' · ' + esc(l.model) : ''}</option>`).join('')}</select>
+        <span class="pending">เป็น</span>
+        <input class="inp" id="renNew" placeholder="เลข LOT ที่ถูก" maxlength="30" style="width:150px;text-transform:uppercase" autocomplete="off">
+        <button class="btn small" onclick="renameLot()">แก้เลข LOT</button>
+      </div>
+      <div class="help">เปลี่ยนทุกที่ของวันนั้น: แผน, ยอดรายชั่วโมง, ประวัติสลับ · รุ่นดึงจาก Master_Work · ประเภทงาน / Rate / เป้าเดิมใช้ต่อ</div>
+
+      <div class="sub">🔁 เพิ่มจุดสลับรุ่น (ลืมกด)</div>
+      ${slotOpts ? `
+      <div class="sw-grid">
+        <label>เริ่มช่อง<select class="inp" id="swSlot" onchange="swPreview()">${slotOpts}</select></label>
+        <label>LOT ใหม่<input class="inp" id="swLot" list="swLots" maxlength="30" placeholder="เลข LOT" style="text-transform:uppercase" autocomplete="off" oninput="swPreview()"></label>
+        <label id="swTypeWrap">ประเภทงาน<select class="inp" id="swType" onchange="swPreview()">${typeOpts}</select></label>
+        <label id="swRateWrap">Rate (ตัว/ชม.)<input class="inp" id="swRate" type="number" min="${RATE_MIN}" max="${RATE_MAX}" step="1" placeholder="${RATE_MIN}–${RATE_MAX}" oninput="swPreview()"></label>
+      </div>
+      <datalist id="swLots">${lots.map(l => `<option value="${esc(l.lot)}">`).join('')}</datalist>
+      <div class="help" id="swHint"></div>
+      <div class="row-inline" style="margin-top:8px"><button class="btn small" style="flex:1" onclick="addSwitch()">เพิ่มจุดสลับ (คำนวณเป้าใหม่)</button></div>` : '<div class="help">ไม่มีช่องที่เพิ่มจุดสลับได้</div>'}
+    </div>`;
+  }
+  function swState() {
+    const slot = $('swSlot') ? $('swSlot').value : '';
+    const lot = ($('swLot') ? $('swLot').value : '').trim().toUpperCase().replace(/\s+/g, '');
+    const type = $('swType') ? $('swType').value : '';
+    const rate = $('swRate') ? $('swRate').value.trim() : '';
+    const ws = workSlots(), i = ws.findIndex(s => s.slot === slot);
+    const cur = i >= 0 ? ws[i].lot : '';
+    const switches = day.history || [];
+    // ช่องที่จะย้ายไป LOT ใหม่ = ตั้งแต่ช่องที่เลือก จนถึงก่อนจุดสลับถัดไป
+    const nextSw = ws.findIndex((s, k) => k > i && switches.some(x => x.slot === s.slot));
+    const moved = i >= 0 ? ws.slice(i, nextSw > i ? nextSw : ws.length) : [];
+    const lots = dayLots();
+    const repeat = lots.some(l => l.lot === lot);
+    const t = type ? findType(type) : null;
+    return { slot, lot, type, rate, t, cur, moved, repeat, lotCount: lots.length };
+  }
+  function swPreview() {
+    const st = swState();
+    if (!$('swHint')) return;
+    $('swTypeWrap').style.display = st.repeat ? 'none' : '';
+    $('swRateWrap').style.display = !st.repeat && st.t && st.t.manual ? '' : 'none';
+    const savedN = st.moved.filter(s => s.saved).length;
+    let t = '';
+    if (st.lot && st.lot === st.cur) t = `ช่องนี้เป็น ${st.lot} อยู่แล้ว`;
+    else if (st.lot) {
+      const span = st.moved.length ? `${st.moved[0].slot.split('-')[0]}–${st.moved[st.moved.length - 1].slot.split('-')[1]}` : '';
+      t = `${st.cur} → ${st.lot}${st.repeat ? ' (กลับ LOT เดิม ใช้ประเภท / Rate เดิม)' : ''} · ช่วง ${span} (${st.moved.length} ช่อง) · ยอดที่กรอกแล้ว ${savedN} ช่องจะย้ายเป็น ${st.lot}`;
+      if (!st.repeat && st.lotCount >= MAX_LOTS) t = `วันนั้นมีครบ ${MAX_LOTS} LOT แล้ว เพิ่ม LOT ใหม่ไม่ได้ (สลับกลับ LOT เดิมได้)`;
+    }
+    $('swHint').textContent = t;
+  }
+  // ส่งคำสั่ง LOT: ถ้า LOT ไม่มีใน Master_Work ระบบถามยืนยันก่อน
+  async function postLot(payload) {
+    const body = Object.assign({}, payload, { password: password, by: $('byName').value.trim() || 'แอดมิน' });
+    let res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) });
+    let data = JSON.parse(await res.text());
+    if (data && data.status === 'confirm') {
+      if (!confirm(data.error)) return null;
+      body.allowNotInMaster = true;
+      res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) });
+      data = JSON.parse(await res.text());
+    }
+    if (!data || data.status !== 'success') throw new Error((data && data.error) || 'ไม่สำเร็จ');
+    return data;
+  }
+  async function renameLot() {
+    const oldLot = $('renOld').value;
+    const newLot = $('renNew').value.trim().toUpperCase().replace(/\s+/g, '');
+    if (!newLot) { alert('กรุณาใส่เลข LOT ที่ถูก'); return; }
+    if (newLot === oldLot) { alert('เลข LOT ใหม่เหมือนเดิม'); return; }
+    if (dayLots().some(l => l.lot === newLot)) { alert(`วันนั้นมี LOT ${newLot} อยู่แล้ว`); return; }
+    if (hasUnsaved() && !confirm('มียอดที่แก้แต่ยังไม่บันทึก จะถูกทิ้งไป ดำเนินการต่อไหม?')) return;
+    const n = day.slots.filter(s => s.saved && s.saved.lot === oldLot).length;
+    if (!confirm(`LINE ${day.line} · ${thaiDate(day.date)}\nแก้เลข LOT ${oldLot} → ${newLot}\nยอดรายชั่วโมงที่บันทึกแล้ว ${n} ช่องจะเปลี่ยนเป็น ${newLot}`)) return;
+    const r = await act(() => postLot({ action: 'MAINT_RENAME_LOT', line: day.line, date: day.date, oldLot, newLot }),
+      r => r ? `แก้เป็น ${r.newLot}${r.model ? ' (' + r.model + ')' : ''} แล้ว • ยอด ${r.hourlyRows} ช่อง` : 'ยกเลิกแล้ว');
+    if (r) await loadDay();
+  }
+  async function addSwitch() {
+    const st = swState();
+    if (!st.slot) { alert('กรุณาเลือกช่อง'); return; }
+    if (!st.lot) { alert('กรุณาใส่เลข LOT ใหม่'); return; }
+    if (st.lot === st.cur) { alert(`ช่อง ${st.slot} เป็น ${st.lot} อยู่แล้ว`); return; }
+    if (!st.repeat) {
+      if (st.lotCount >= MAX_LOTS) { alert(`วันนั้นมีครบ ${MAX_LOTS} LOT แล้ว`); return; }
+      if (st.t && st.t.manual) {
+        const r = Number(st.rate);
+        if (!Number.isInteger(r) || r < RATE_MIN || r > RATE_MAX) { alert(`Rate ${st.t.name} ต้องเป็นจำนวนเต็ม ${RATE_MIN}–${RATE_MAX}`); return; }
+      }
+    }
+    if (hasUnsaved() && !confirm('มียอดที่แก้แต่ยังไม่บันทึก จะถูกทิ้งไป ดำเนินการต่อไหม?')) return;
+    const savedN = st.moved.filter(s => s.saved).length;
+    const typeText = st.repeat ? 'ใช้ประเภท / Rate เดิมของ ' + st.lot
+      : (st.t ? `ประเภท ${st.t.name} · Rate ${st.t.manual ? st.rate : st.t.rate}` : 'ประเภทตาม Master_Work');
+    if (!confirm(`LINE ${day.line} · ${thaiDate(day.date)}\nสลับ ${st.cur} → ${st.lot} เริ่มช่อง ${st.slot}\n${typeText}\nยอดที่บันทึกแล้ว ${savedN} ช่องจะย้ายเป็น ${st.lot}\nเป้าแต่ละ LOT จะคำนวณใหม่`)) return;
+    const payload = { action: 'MAINT_ADD_LOT_SWITCH', line: day.line, date: day.date, slot: st.slot, newLot: st.lot };
+    if (!st.repeat && st.t) { payload.productType = st.t.name; if (st.t.manual) payload.productRate = Number(st.rate); }
+    const r = await act(() => postLot(payload), r => r ? `เพิ่มจุดสลับแล้ว • เป้ารวมใหม่ ${fmtNum(r.totalTarget)} ชิ้น` : 'ยกเลิกแล้ว');
     if (r) await loadDay();
   }
 
