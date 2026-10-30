@@ -389,7 +389,7 @@
 
   // V9: Rate ตามประเภทงาน — รายการจริงโหลดจาก Apps Script (ชีท Product_Types)
   let productTypes = [
-    { name: "เสื้อปกติ", rate: 80, manual: false },
+    { name: "เสื้อปกติ", rate: 80, manual: true },
     { name: "สเวตเตอร์", rate: 60, manual: true }
   ];
   // V14: ประเภทที่ manual = กรอก Rate เองตามรุ่น (จำต่อ LOT)
@@ -482,7 +482,7 @@
     select.innerHTML =
       `<option value="">-- เลือกประเภทงาน --</option>` +
       productTypes
-        .map(t => `<option value="${t.name}">${t.name} (${t.manual ? "กรอก Rate เอง" : formatNumber(t.rate) + " ชิ้น/ชม."})</option>`)
+        .map(t => `<option value="${t.name}">${t.name}${t.manual ? "" : " (" + formatNumber(t.rate) + " ชิ้น/ชม.)"}</option>`)
         .join("");
 
     if (productTypes.some(t => t.name === current)) select.value = current;
@@ -532,13 +532,13 @@
     const remembered = lastLotLookup && lastLotLookup.rateOverride ? Number(lastLotLookup.rateOverride) : 0;
 
     if (manualRateFor !== lotKey || !input.value.trim()) {
-      input.value = remembered || type.rate || "";
+      input.value = remembered || ""; // V20: Rate เปลี่ยนตามรุ่น → LOT ใหม่ให้หน้างานกรอกเอง
       manualRateFor = lotKey;
     }
 
     hint.textContent = remembered
       ? `Rate ล่าสุดของ LOT นี้ ${formatNumber(remembered)} ตัว/ชม. • แก้ได้ถ้ารุ่นนี้ไม่ตรง`
-      : `ค่าเริ่มต้น ${formatNumber(type.rate)} ตัว/ชม. • แก้ให้ตรงรุ่น (${RATE_MIN}–${RATE_MAX})`;
+      : `กรอก Rate ของรุ่นนี้ ${RATE_MIN}–${RATE_MAX} ตัว/ชม.`;
   }
 
   // V17: ตั้งแต่ 24/10/2026 — เลือกเวลาเข้างาน 08.00 / 08.30 เอง

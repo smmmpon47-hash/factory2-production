@@ -2513,7 +2513,7 @@
     select.innerHTML =
       '<option value="">-- เลือกประเภทงาน --</option>' +
       productTypesList
-        .map(t => `<option value="${escapeHtml_(t.name)}">${escapeHtml_(t.name)} (${t.manual ? 'กรอก Rate เอง' : t.rate.toLocaleString() + ' ชิ้น/ชม.'})</option>`)
+        .map(t => `<option value="${escapeHtml_(t.name)}">${escapeHtml_(t.name)}${t.manual ? '' : ' (' + t.rate.toLocaleString() + ' ชิ้น/ชม.)'}</option>`)
         .join('');
   }
 
@@ -2623,13 +2623,13 @@
     const remembered = info && info.rateOverride ? Number(info.rateOverride) : 0;
 
     if (modalManualRateFor !== key) {
-      input.value = remembered || base.rate || '';
+      input.value = remembered || ''; // V20: Rate เปลี่ยนตามรุ่น → LOT ใหม่ให้หน้างานกรอกเอง
       modalManualRateFor = key;
     }
 
     hint.textContent = remembered
       ? `Rate ล่าสุดของ LOT นี้ ${remembered} ตัว/ชม. • แก้ได้ถ้ารุ่นนี้ไม่ตรง`
-      : `ค่าเริ่มต้น ${base.rate} ตัว/ชม. • แก้ให้ตรงรุ่น (${MANUAL_RATE_MIN}–${MANUAL_RATE_MAX})`;
+      : `กรอก Rate ของรุ่นนี้ ${MANUAL_RATE_MIN}–${MANUAL_RATE_MAX} ตัว/ชม.`;
   }
 
   /**
