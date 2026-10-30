@@ -531,7 +531,8 @@
     const lotKey = lastLotLookup && lastLotLookup.lot ? lastLotLookup.lot : "-";
     const remembered = lastLotLookup && lastLotLookup.rateOverride ? Number(lastLotLookup.rateOverride) : 0;
 
-    if (manualRateFor !== lotKey || !input.value.trim()) {
+    // เติมค่าให้เฉพาะตอนเปลี่ยน LOT — ลบเลขแล้วต้องว่างได้ ไม่เติมกลับ
+    if (manualRateFor !== lotKey) {
       input.value = remembered || ""; // V20: Rate เปลี่ยนตามรุ่น → LOT ใหม่ให้หน้างานกรอกเอง
       manualRateFor = lotKey;
     }
