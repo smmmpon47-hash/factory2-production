@@ -50,6 +50,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet"></noscript>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --navy:#0F172A; --navy2:#16233F;
@@ -63,9 +64,6 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
 .lineCard{min-height:224px}
 .kpi{border-radius:18px;padding:14px 16px}
 .hide{display:none!important}
-.lineSelBtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1.5px solid #E2E8F0;background:#fff;border-radius:14px;padding:8px 10px;min-width:0;transition:all .15s}
-.lineSelBtn:hover{border-color:#A5B4FC}
-.lineSelBtn.active{border-color:#4F46E5;background:#EEF2FF;box-shadow:0 0 0 3px rgba(79,70,229,.12)}
 .lineDot{width:8px;height:8px;border-radius:999px;display:inline-block;flex:0 0 auto}
 .lotModalBack{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:90;display:flex;align-items:flex-start;justify-content:center;padding:6vh 14px 14px;overflow:auto}
 .progressTrack{background:#F1F5F9;border-radius:999px;height:8px;overflow:hidden}
@@ -93,25 +91,15 @@ body{font-family:'Kanit',sans-serif;background:#EEF2F7;color:#0F172A}
   .lineCard{min-height:0}
 }
 /* ---------- floor plan (แบบเดียวกับ Dashboard โรง 1) ---------- */
-.floorLayout{display:grid;grid-template-columns:minmax(0,3.2fr) minmax(260px,1fr);gap:16px;align-items:stretch}
-.floorMain{min-width:0;padding:20px;border:1px solid #E2E8F0;border-radius:24px;background:#fff}
 .planWrap{position:relative;width:100%;aspect-ratio:1394 / 472;border-radius:16px;overflow:hidden;background:#22303F;border:1px solid #DCE4EE;box-shadow:0 18px 36px -28px rgba(15,23,42,.65)}
 .planCanvas{position:absolute;inset:0}
 .planImg{display:block;width:100%;height:100%;object-fit:contain}
-.guideColumn{min-width:0;display:flex;flex-direction:column;gap:10px;align-self:start}
-.guideTitle{min-height:44px;padding:8px 16px;display:flex;align-items:center;justify-content:center;border:1px solid #E2E8F0;border-radius:20px;background:#fff;font-size:14px;font-weight:800;color:#0F172A}
-.lineShortcutBody{padding:10px;border:1px solid #E2E8F0;border-radius:20px;background:#fff;display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.guideBody{padding:14px 18px;border:1px solid #E2E8F0;border-radius:20px;background:#fff}
-.guideStep{display:flex;align-items:flex-start;gap:10px}
-.guideNo{width:24px;height:24px;flex:0 0 24px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#4338CA;background:#EEF2FF;font-size:12px;font-weight:800}
 .hot{position:absolute;border-radius:8px;cursor:pointer;border:2px solid transparent;background:transparent;display:flex;align-items:center;justify-content:center;transition:background .22s cubic-bezier(0.22,1,0.36,1),border-color .22s cubic-bezier(0.22,1,0.36,1),box-shadow .22s cubic-bezier(0.22,1,0.36,1),transform .22s cubic-bezier(0.22,1,0.36,1)}
 .hot:hover,.hot.is-active{background:rgba(217,155,43,.48);border-color:#C68400;box-shadow:0 10px 24px -10px rgba(120,78,0,.55),0 0 0 3px rgba(255,255,255,.38);transform:translateY(-2px)}
 .hot .hotLabel{font-size:11px;font-weight:700;color:#fff;background:rgba(120,78,0,.90);padding:3px 9px;border-radius:999px;opacity:0;transform:translateY(4px);transition:.18s ease;white-space:nowrap}
 .hot:hover .hotLabel,.hot.is-active .hotLabel{opacity:1;transform:translateY(0)}
-.hotDot{position:absolute;top:4px;right:4px;width:9px;height:9px;border-radius:999px;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.25)}
 #planTip{position:absolute;z-index:30;width:230px;pointer-events:none;background:#fff;border-radius:16px;padding:14px;box-shadow:0 18px 40px -16px rgba(2,8,23,.55);opacity:0;transform:scale(.96);transition:opacity .14s ease,transform .14s ease}
 #planTip.show{opacity:1;transform:scale(1)}
-@media (max-width:1023px){.floorLayout{grid-template-columns:1fr}.lineShortcutBody{grid-template-columns:repeat(3,1fr)}}
 </style>
 <style>
 /* ================= NIGHT MODE (html.dark) — ลุคเดียวกับ Dashboard โรง 1, โหมดสว่างไม่ถูกแตะ ================= */
@@ -161,9 +149,6 @@ html.dark .bg-slate-900, html.dark .bg-slate-800{
   background:linear-gradient(180deg,var(--gold),var(--gold2)); color:#14110A; box-shadow:0 6px 16px -10px rgba(214,185,123,.7);
 }
 html.dark .bg-slate-900.text-white, html.dark .bg-slate-800.text-white{color:#14110A}
-html.dark .lineSelBtn{background:var(--d-card2);border-color:var(--d-line2)}
-html.dark .lineSelBtn:hover{background:var(--gold-soft);border-color:var(--gold2)}
-html.dark .lineSelBtn.active{background:var(--gold-soft);border-color:var(--gold);box-shadow:0 0 0 3px rgba(214,185,123,.14)}
 html.dark .lineCard.border-indigo-300{border-color:var(--gold2)}
 html.dark .ring-indigo-100{--tw-ring-color:rgba(214,185,123,.25)}
 html.dark .hover\:border-indigo-200:hover{border-color:rgba(214,185,123,.4)}
@@ -202,7 +187,6 @@ html.dark #kpiBar{background:linear-gradient(90deg,var(--gold2),var(--gold))}
 
 /* ส่วนที่เขียนสีเองในหน้า */
 html.dark .planWrap{border-color:var(--d-line2);box-shadow:0 30px 60px -36px rgba(0,0,0,1)}
-html.dark .guideNo{background:var(--gold-soft);color:var(--gold)}
 html.dark #planTip{background:#16213A;color:var(--d-hi);box-shadow:0 18px 40px -16px rgba(0,0,0,.9)}
 html.dark .lotModalBack{background:rgba(2,6,15,.6)}
 html.dark #dashboardLoadingOverlay{background:rgba(2,6,15,.55)}
@@ -216,6 +200,533 @@ html.dark ::placeholder{color:var(--d-t4)}
 html.dark ::selection{background:rgba(214,185,123,.35)}
 
 #themeBtn .ico-sun{display:none} html.dark #themeBtn .ico-sun{display:inline} html.dark #themeBtn .ico-moon{display:none}
+</style>
+<style>
+/* ================= ลุคเดียวกับ Dashboard โรง 1 (เมนูซ้าย · กระจก · ผังเส้น · เลือกวันที่ · motion) — ยกมาเป็นของโรง 2 เอง ไม่ได้โหลดไฟล์ของโรง 1 ================= */
+  /* ================= APP NAV (เมนูซ้าย) — ไม่แสดงในโหมด ?embed=1 ================= */
+  :root{ --nav-w:252px; --nav-rail:72px; }
+  #appNav, #appTopbar, #appNavBackdrop{ display:none; }
+  html.has-nav #appNav{
+    display:flex; flex-direction:column; position:fixed; z-index:90; top:0; bottom:0; left:0;
+    width:var(--nav-w); color:#E6EDF6; overflow:hidden;
+    background:linear-gradient(180deg,#0F172A 0%,#16233F 100%);
+    border-right:1px solid rgba(255,255,255,.06); transition:width .2s ease, transform .2s ease;
+  }
+  html.has-nav body{ padding-left:var(--nav-w); transition:padding-left .2s ease; }
+  html.has-nav.nav-collapsed #appNav{ width:var(--nav-rail); }
+  html.has-nav.nav-collapsed body{ padding-left:var(--nav-rail); }
+  html.nav-collapsed .nav-text, html.nav-collapsed .nav-tag, html.nav-collapsed .nav-group{ display:none; }
+  html.nav-collapsed .nav-item, html.nav-collapsed .nav-brand{ justify-content:center; padding-left:0; padding-right:0; }
+  .nav-brand{ display:flex; align-items:center; gap:10px; padding:16px 16px 12px; min-height:64px; box-sizing:border-box; }
+  .nav-logo{ width:40px; height:40px; flex:0 0 40px; border-radius:12px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; }
+  .nav-toggle{ margin-left:auto; width:40px; height:40px; flex:0 0 40px; border-radius:10px; border:0; background:transparent; color:#B7C2D3; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .nav-toggle:hover{ background:rgba(255,255,255,.08); color:#fff; }
+  html.nav-collapsed .nav-toggle{ margin-left:0; }
+  html.nav-collapsed .nav-brand{ flex-direction:column; gap:6px; }
+  .nav-list{ display:flex; flex-direction:column; gap:2px; padding:4px 10px; overflow-y:auto; }
+  .nav-group{ font-size:11px; letter-spacing:.06em; color:#7F8CA3; padding:14px 12px 6px; }
+  .nav-item{ display:flex; align-items:center; gap:12px; min-height:44px; padding:0 12px; border-radius:12px; color:#C7D0DD; text-decoration:none; font-size:14px; }
+  .nav-item:hover{ background:rgba(255,255,255,.07); color:#fff; }
+  .nav-item.is-active{ background:rgba(214,185,123,.16); color:#F1DFB5; }
+  .nav-item svg{ flex:0 0 20px; }
+  .nav-tag{ margin-left:auto; font-size:10px; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,.08); color:#93A0B4; white-space:nowrap; }
+  .nav-foot{ margin-top:auto; padding:12px 16px 16px; font-size:11px; color:#6F7C91; }
+  html.nav-collapsed .nav-foot{ display:none; }
+
+  /* มือถือ / แท็บเล็ต: เมนูเป็นลิ้นชัก + แถบบน */
+  @media (max-width:1023px){
+    html.has-nav body, html.has-nav.nav-collapsed body{ padding-left:0; padding-top:56px; }
+    html.has-nav #appNav, html.has-nav.nav-collapsed #appNav{ width:var(--nav-w); transform:translateX(-100%); box-shadow:none; }
+    html.nav-open #appNav{ transform:translateX(0) !important; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+    html.nav-collapsed .nav-text, html.nav-collapsed .nav-tag, html.nav-collapsed .nav-group, html.nav-collapsed .nav-foot{ display:revert; }
+    html.nav-collapsed .nav-item{ justify-content:flex-start; padding:0 12px; }
+    html.nav-collapsed .nav-brand{ flex-direction:row; justify-content:flex-start; padding:16px 16px 12px; }
+    html.has-nav #appTopbar{ display:flex; position:fixed; z-index:85; top:0; left:0; right:0; height:56px; align-items:center; gap:10px; padding:0 8px; background:#0F172A; color:#fff; }
+    html.nav-open #appNavBackdrop{ display:block; position:fixed; inset:0; z-index:88; background:rgba(15,23,42,.55); }
+    .nav-toggle.desk{ display:none; }
+  }
+  @media (min-width:1024px){ .nav-close.mob{ display:none; } }
+
+  /* หน้าอื่นที่ไม่ใช่ Sewing: ซ่อน Loading ของ Dashboard (Dashboard ยังโหลดอยู่เบื้องหลัง) */
+  /* ================= MOTION — เล่นตอนเข้าหน้า / Dashboard โหลดเสร็จครั้งแรก (ไม่เล่นตอนรีเฟรชข้อมูล) ================= */
+  @keyframes f1Up{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:none; } }
+  @keyframes f1Fade{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes f1GrowY{ from{ transform:scaleY(0); } to{ transform:scaleY(1); } }
+  @keyframes f1GrowX{ from{ transform:scaleX(0); } to{ transform:scaleX(1); } }
+  @keyframes f1Drop{ from{ opacity:0; transform:translateY(-12px); } to{ opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: no-preference){
+    /* --f1d0 = รอให้จอโหลดจางหายก่อนค่อยเริ่ม (ตอนโหลด Dashboard รอบแรก) */
+    .f1-enter .f1-anim{ animation:f1Up .65s cubic-bezier(.2,.75,.25,1) both; animation-delay:calc(var(--f1d0, 0ms) + var(--i, 0) * 70ms); }
+    /* การ์ดไลน์ / แถบ KPI: รอจนเลื่อนมาเห็นการ์ดจริง (f1-wait) แล้วค่อยเทตัวหนังสือลงทีละบรรทัด + แถบ % ไหลไปขวา (f1-go)
+       --cd = จังหวะเริ่มของการ์ดใบนั้น · --r = ลำดับบรรทัด */
+    .f1-wait .f1-drop{ opacity:0; }
+    .lineCard.f1-go .rounded-full > div{ transition:background-color .35s ease; }
+    .f1-go .f1-drop{ animation:f1Drop .6s cubic-bezier(.2,.75,.25,1) both; animation-delay:calc(var(--cd, 0ms) + var(--r, 0) * 110ms); }
+    .f1-fade{ animation:f1Fade .45s ease both; }
+    .f1-late{ animation:f1Drop .45s cubic-bezier(.2,.75,.25,1) both; }
+    /* เอาเมาส์ชี้การ์ดเล็ก: ยกขึ้นนิดนึง */
+    .lineCard{ transition:transform .22s cubic-bezier(.2,.75,.25,1), box-shadow .22s ease; }
+    .lineCard:hover{ transform:translateY(-3px); box-shadow:0 16px 32px -22px rgba(15,23,42,.55); }
+    .nav-item{ transition:background-color .2s ease, color .2s ease; }
+  }
+  /* ================= GLASS THEME — สว่าง: กระจกขาวบนฟ้าม่วงอ่อน · มืด: กระจกดำตัดทองแชมเปญ =================
+     ไม่ใช้ backdrop-filter กับการ์ด (พื้นหลังฟุ้งอยู่แล้ว ดูเหมือนกัน แต่เครื่องโรงงาน/ทีวีไม่หน่วง) */
+  html{ background:linear-gradient(135deg,#EEF2FF 0%,#E0E7FF 35%,#F5F3FF 70%,#ECFEFF 100%) fixed; }
+  html.dark{ background:#06080E; }
+  body, html.dark body{ background:transparent; }
+  #f1Aurora{ position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden; }
+  /* แสงฟุ้ง = radial-gradient (ไม่ใช้ filter:blur — เครื่องไม่มีการ์ดจอต้องวาด blur ใหม่ทุกเฟรม หน้าหน่วงมาก) */
+  #f1Aurora i{ position:absolute; display:block; border-radius:50%; will-change:transform; background:radial-gradient(closest-side, var(--c), transparent); }
+  #f1Aurora .a1{ --c:rgba(99,102,241,.30); width:1000px; height:1000px; left:-380px; top:-440px; }
+  #f1Aurora .a2{ --c:rgba(103,232,249,.36); width:900px; height:900px; right:-360px; top:calc(30vh - 170px); }
+  #f1Aurora .a3{ --c:rgba(196,181,253,.48); width:900px; height:900px; left:calc(38vw - 170px); bottom:-450px; }
+  html.dark #f1Aurora .a1{ --c:rgba(56,78,130,.42); width:1300px; height:900px; left:-340px; top:-500px; }
+  html.dark #f1Aurora .a2{ --c:rgba(214,185,123,.13); width:1000px; height:800px; right:-340px; top:-360px; }
+  html.dark #f1Aurora .a3{ --c:rgba(214,185,123,.09); width:1100px; height:760px; left:calc(38vw - 200px); bottom:-470px; }
+  .is-embed #f1Aurora{ display:none; }
+
+  /* ---------- การ์ด: สว่าง ---------- */
+  html:not(.dark) .card, html:not(.dark) .floorMain, html:not(.dark) .guideColumn{
+    background:rgba(255,255,255,.60); border:1px solid rgba(255,255,255,.88);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.95), 0 18px 40px -26px rgba(49,46,129,.38);
+  }
+  html:not(.dark) .soft{ box-shadow:inset 0 1px 0 rgba(255,255,255,.95), 0 18px 40px -26px rgba(49,46,129,.38); }
+  html:not(.dark) .bg-slate-100{ background-color:rgba(148,163,184,.20); }
+  html:not(.dark) .floorSwitch{ background:rgba(255,255,255,.55); }
+  /* หน้าต่างลอย (ค้นหา LOT / รายละเอียดไลน์) ทึบกว่า อ่านง่าย */
+  html:not(.dark) .fixed .card{ background:rgba(255,255,255,.97); }
+
+  /* ---------- การ์ด: มืด ดำตัดทอง ---------- */
+  html.dark .card, html.dark .floorMain, html.dark .guideColumn, html.dark .guideTitle, html.dark .lineShortcutBody, html.dark .guideBody{
+    background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.01) 45%), rgba(13,18,29,.74);
+    border:1px solid rgba(255,255,255,.07);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 28px 56px -34px rgba(0,0,0,.95);
+  }
+  html.dark .fixed .card{ background:#0D121D; }
+
+  /* ---------- หัว Dashboard ---------- */
+  .shell > header{ position:relative; overflow:hidden; }
+  html:not(.dark) .shell > header{
+    background:rgba(255,255,255,.60) !important; color:#0F172A;
+    border:1px solid rgba(255,255,255,.9);
+    box-shadow:inset 0 1px 0 #fff, 0 18px 40px -26px rgba(49,46,129,.38);
+  }
+  html:not(.dark) .shell > header .text-white\/60, html:not(.dark) .shell > header .text-white\/55{ color:#475569; }
+  html:not(.dark) .shell > header .bg-white\/10{ background-color:rgba(255,255,255,.75); }
+  html:not(.dark) .shell > header .hover\:bg-white\/20:hover{ background-color:#fff; }
+  html:not(.dark) .shell > header .border-white\/15{ border-color:rgba(255,255,255,.95); }
+  html:not(.dark) .shell > header .bg-white\/10{ box-shadow:0 8px 18px -14px rgba(49,46,129,.45); color:#334155; }
+  html:not(.dark) .hd-logo{ background:linear-gradient(140deg,#6366F1,#22D3EE) !important; border-color:transparent !important; color:#fff; box-shadow:0 10px 20px -10px #6366F1; }
+  html.dark .shell > header{
+    background:linear-gradient(120deg, rgba(11,15,25,.88) 0%, rgba(17,26,44,.82) 60%, rgba(22,34,58,.80) 100%) !important;
+    border:1px solid rgba(255,255,255,.07);
+    box-shadow:inset 0 -1px 0 rgba(214,185,123,.45), 0 28px 56px -34px rgba(0,0,0,.95);
+  }
+  html.dark .hd-logo{ color:#D6B97B; background:rgba(214,185,123,.10) !important; border-color:rgba(214,185,123,.35) !important; }
+  html.dark .shell > header .hd-ico, html.dark #themeBtn{ color:#D6B97B; }
+  .hd-ico{ display:inline-flex; }
+  .live-dot{ width:8px; height:8px; border-radius:50%; background:#10B981; box-shadow:0 0 0 0 rgba(16,185,129,.55); flex:0 0 8px; }
+
+  /* ---------- เมนูซ้าย ---------- */
+  html:not(.dark) #appNav{
+    background:rgba(255,255,255,.55); color:#1E293B;
+    border-right:1px solid rgba(255,255,255,.85);
+    box-shadow:inset -1px 0 0 rgba(255,255,255,.6), 12px 0 40px -30px rgba(49,46,129,.35);
+  }
+  html:not(.dark) .nav-logo{ background:linear-gradient(140deg,#6366F1,#22D3EE); border-color:transparent; box-shadow:0 10px 20px -10px #6366F1; }
+  html:not(.dark) .nav-logo svg{ stroke:#fff; }
+  html:not(.dark) .nav-brand .nav-text div:last-child{ color:#475569 !important; }
+  html:not(.dark) .nav-toggle{ color:#475569; }
+  html:not(.dark) .nav-toggle:hover{ background:rgba(255,255,255,.7); color:#0F172A; }
+  html:not(.dark) .nav-group{ color:#64748B; }
+  html:not(.dark) .nav-item{ color:#334155; }
+  html:not(.dark) .nav-item:hover{ background:rgba(255,255,255,.65); color:#0F172A; }
+  html:not(.dark) .nav-item.is-active{ background:rgba(255,255,255,.92); color:#1E1B4B; font-weight:600; box-shadow:0 10px 22px -16px rgba(49,46,129,.7), inset 0 1px 0 #fff; }
+  html:not(.dark) .nav-item.is-active svg{ color:#6366F1; }
+  html:not(.dark) .nav-tag{ background:rgba(99,102,241,.10); color:#4F46E5; }
+  html:not(.dark) .nav-foot{ color:#64748B; }
+  /* การ์ดผู้ใช้ท้ายเมนู (ชื่อ LINE + รูป) */
+  .nav-foot{ padding:12px 12px 14px; }
+  html.nav-collapsed .nav-foot{ display:block; padding:12px 8px 14px; }
+  .nav-user{ display:flex; align-items:center; gap:10px; padding:10px; border-radius:18px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); }
+  html.nav-collapsed .nav-user{ justify-content:center; padding:8px 0; background:transparent; border-color:transparent; }
+  .nav-avatar{ position:relative; width:38px; height:38px; flex:0 0 38px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; background:rgba(214,185,123,.12); border:1px solid rgba(214,185,123,.30); color:#D6B97B; }
+  .nav-avatar img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .nav-user-text{ display:flex; flex-direction:column; min-width:0; line-height:1.25; }
+  .nav-user-name{ font-size:14px; font-weight:600; color:#E6EDF6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .nav-user-sub{ font-size:12px; color:#A3B1C6; }
+  html:not(.dark) .nav-user{ background:rgba(255,255,255,.72); border-color:rgba(255,255,255,.95); box-shadow:0 10px 22px -16px rgba(49,46,129,.55), inset 0 1px 0 #fff; }
+  html:not(.dark) .nav-avatar{ background:#E0E7FF; border-color:transparent; color:#4338CA; }
+  html:not(.dark) .nav-user-name{ color:#0F172A; }
+  html:not(.dark) .nav-user-sub{ color:#475569; }
+  html.dark #appNav{
+    background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0) 40%), rgba(10,14,23,.78);
+    border-right:1px solid rgba(255,255,255,.06);
+  }
+  html.dark .nav-brand{ box-shadow:inset 0 -1px 0 rgba(214,185,123,.18); }
+  html.dark .nav-logo{ background:rgba(214,185,123,.10); border-color:rgba(214,185,123,.35); }
+  html.dark .nav-item.is-active{ background:linear-gradient(180deg,#D6B97B,#B8975A); color:#14110A; font-weight:600; box-shadow:0 8px 20px -12px rgba(214,185,123,.8); }
+  @media (min-width:1024px){
+    /* เมนูลอยเป็นแผ่นกระจก มีขอบโค้ง */
+    html.has-nav #appNav{ top:14px; bottom:14px; left:14px; width:calc(var(--nav-w) - 18px); border-radius:26px; border:1px solid rgba(255,255,255,.85); }
+    html.has-nav.nav-collapsed #appNav{ width:calc(var(--nav-rail) - 8px); }
+    html.dark.has-nav #appNav{ border-color:rgba(255,255,255,.07); }
+  }
+  html:not(.dark) #appTopbar{ background:rgba(255,255,255,.80) !important; color:#0F172A !important; box-shadow:0 10px 30px -20px rgba(49,46,129,.45); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+  html:not(.dark) #appTopbar .nav-toggle{ color:#0F172A !important; }
+  html.dark #appTopbar{ background:rgba(10,14,23,.86); box-shadow:inset 0 -1px 0 rgba(214,185,123,.30); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+  /* มือถือ / แท็บเล็ต: เมนูลิ้นชักเป็นแผ่นทึบ (กระจกใสซ้อนกับเนื้อหาข้างหลังจนอ่านไม่ออก) */
+  @media (max-width:1023px){
+    html:not(.dark) #appNav{ background:linear-gradient(180deg,#F7F8FF 0%,#EEF1FF 100%); border-right:1px solid #E0E7FF; }
+    html.dark #appNav{ background:linear-gradient(180deg,#0D121D 0%,#080B13 100%); border-right:1px solid rgba(214,185,123,.18); }
+    html:not(.dark) .nav-user{ background:#fff; }
+    html.dark .nav-user{ background:#121a2a; }
+  }
+
+  /* ---------- สลับธีม: สีค่อยๆ เปลี่ยน (สำรอง) / วงกลมขยาย (View Transition) ---------- */
+  html.theme-fade, html.theme-fade *{ transition:background-color .6s ease, border-color .6s ease, color .6s ease, box-shadow .6s ease !important; }
+  ::view-transition-old(root), ::view-transition-new(root){ animation:none; mix-blend-mode:normal; }
+  .theme-curtain{ position:fixed; inset:0; z-index:200; pointer-events:none; }
+  .theme-curtain.to-dark{ background:#06080E; }
+  .theme-curtain.to-light{ background:linear-gradient(135deg,#EEF2FF 0%,#E0E7FF 35%,#F5F3FF 70%,#ECFEFF 100%); }
+
+  /* ---------- ผังโรงงานแบบโปร่ง: เส้นผังลอยบนฉาก · สว่าง = เส้นดำ · มืด = เส้นขาว ---------- */
+  .floorScene{ position:relative; overflow:hidden; border-radius:28px; padding:36px 48px 30px; }
+  html:not(.dark) .card.floorScene{ background:linear-gradient(135deg,#EEF2FF 0%,#E0E7FF 35%,#F5F3FF 70%,#ECFEFF 100%); border:1px solid rgba(255,255,255,.9); box-shadow:inset 0 1px 0 #fff, 0 24px 48px -30px rgba(49,46,129,.45); color:#0F172A; }
+  html.dark .card.floorScene{ background:linear-gradient(180deg,#1C2744 0%,#151D36 42%,#0C1222 78%,#080C17 100%); border:1px solid rgba(255,255,255,.07); box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 30px 60px -36px rgba(0,0,0,.95); color:#E2E8F0; }
+  /* ห้ามใส่ z-index ให้ชั้นเนื้อหา: ผังต้อง "ผสม" กับฉากหลังได้ (mix-blend-mode) ถ้าแยกชั้นจะเห็นเป็นกล่องทึบ */
+  .floorScene > *:not(.fs-bg){ position:relative; }
+  /* ฉากหลัง */
+  .fs-bg{ position:absolute; inset:0; z-index:0; pointer-events:none; }
+  .fs-bg i{ position:absolute; display:block; }
+  .fs-glow1{ width:1000px; height:1000px; left:-380px; top:-440px; border-radius:50%; background:radial-gradient(closest-side, rgba(99,102,241,.22), transparent); }
+  .fs-glow2{ width:900px; height:900px; right:-360px; top:90px; border-radius:50%; background:radial-gradient(closest-side, rgba(103,232,249,.26), transparent); }
+  html.dark .fs-glow1{ left:0; right:0; top:auto; bottom:-560px; width:auto; height:900px; border-radius:0; background:radial-gradient(ellipse 50% 50% at 50% 100%, rgba(214,185,123,.20), transparent 70%); }
+  html.dark .fs-glow2{ background:radial-gradient(closest-side, rgba(56,78,130,.30), transparent); }
+  .fs-tower{ left:50%; top:0; width:300px; height:82%; margin-left:-150px; background:repeating-linear-gradient(180deg, rgba(79,70,229,.07) 0 2px, transparent 2px 22px), linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.2)); border-left:1px solid rgba(255,255,255,.9); border-right:1px solid rgba(255,255,255,.9); }
+  html.dark .fs-tower{ background:repeating-linear-gradient(180deg, rgba(255,255,255,.055) 0 2px, transparent 2px 22px), linear-gradient(180deg, #121A30, #0E1528); border:0; opacity:.9; }
+  .fs-tower2{ display:none; }
+  html.dark .fs-tower2{ display:block; left:50%; top:0; width:120px; height:82%; margin-left:-60px; background:repeating-linear-gradient(180deg, rgba(214,185,123,.10) 0 3px, transparent 3px 22px); opacity:.7; }
+  .fs-skyline{ position:absolute; left:0; bottom:0; width:100%; height:200px; }
+  .fs-roof{ fill:rgba(255,255,255,.55); } .fs-trees{ fill:rgba(196,181,253,.28); }
+  html.dark .fs-roof{ fill:#0A0F1D; } html.dark .fs-trees{ fill:#0B1322; }
+  /* หัวซ้ายบน · มุมขวาบน */
+  .fs-head{ position:absolute !important; left:48px; top:36px; display:flex; flex-direction:column; gap:9px; max-width:40%; }
+  .fs-kicker{ display:flex; align-items:center; gap:10px; margin:0; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:#475569; }
+  .fs-kicker span, .fs-status span{ width:26px; height:1px; background:currentColor; flex:none; }
+  .fs-title{ margin:0; font-family:'Cormorant Garamond', 'Kanit', serif; font-weight:600; font-size:46px; line-height:1; letter-spacing:.06em; color:#0F172A; }
+  .fs-title span{ display:inline-block; }
+  .fs-meta{ margin:0; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#334155; }
+  .fs-meta2{ color:#475569; }
+  .fs-status{ display:flex; align-items:center; gap:10px; margin:0; font-size:11px; letter-spacing:.1em; color:#475569; }
+  .fs-corner{ position:absolute !important; right:48px; top:36px; text-align:right; }
+  .fs-count{ font-family:'Cormorant Garamond', serif; font-size:22px; font-weight:600; letter-spacing:.08em; color:#0F172A; }
+  .fs-count-sub{ font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:#475569; }
+  .fs-live{ display:inline-block; margin-top:8px; padding:3px 10px; border:1px solid rgba(15,23,42,.25); border-radius:999px; font-size:10px; letter-spacing:.14em; color:#334155; }
+  html.dark .fs-kicker, html.dark .fs-meta2, html.dark .fs-status, html.dark .fs-count-sub{ color:#94A3B8; }
+  html.dark .fs-title, html.dark .fs-count{ color:#FFFFFF; }
+  html.dark .fs-meta{ color:#CBD5E1; } html.dark .fs-meta2{ color:#94A3B8; }
+  html.dark .fs-live{ border-color:rgba(255,255,255,.3); color:#CBD5E1; }
+  /* ไม้บรรทัดเลือกชั้น (ขวา) */
+  html body .floorScene .fs-ruler{ position:absolute !important; right:40px; top:44%; display:flex; flex-direction:column; gap:4px; width:auto; padding:0; margin:0; background:transparent; border-radius:0; }
+  html body .floorScene .fs-ruler .floorTab{ display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:64px; min-height:36px; padding:0; border-radius:0; background:transparent; box-shadow:none; font-size:12px; font-weight:500; letter-spacing:.12em; color:#94A3B8; cursor:pointer; }
+  html body .floorScene .fs-ruler .floorTab span{ width:10px; height:1px; background:currentColor; transition:width .35s cubic-bezier(.2,.75,.25,1); }
+  html body .floorScene .fs-ruler .floorTab:hover{ color:#334155; }
+  html body .floorScene .fs-ruler .floorTab.active{ color:#0F172A; font-weight:700; background:transparent; box-shadow:none; }
+  html body .floorScene .fs-ruler .floorTab.active span{ width:34px; }
+  html.dark body .floorScene .fs-ruler .floorTab{ color:#64748B; }
+  html.dark body .floorScene .fs-ruler .floorTab:hover{ color:#CBD5E1; }
+  html.dark body .floorScene .fs-ruler .floorTab.active{ color:#FFFFFF; }
+  /* ตัวผัง */
+  .fs-plan{ width:min(1000px, calc(100% - 240px)); margin:150px auto 0; }
+  html body .floorScene .planWrap{ background:transparent; border:0; box-shadow:none; border-radius:0; overflow:visible; }
+  .floorScene .planImg{ clip-path:inset(10% 3.4% 16% 3.6%); transition:opacity .3s ease, transform .55s cubic-bezier(.2,.75,.25,1); }
+  /* ตัดตามรูปตึก (รวมห้องเล็กที่ยื่นด้านบนขวา) ไม่ให้พื้นหลังเดิมของรูปโผล่เป็นแถบทึบ */
+  .floorScene .planImg[data-floor="3"]{ clip-path:polygon(3.9% 10.9%, 83.9% 10.9%, 83.9% 3.8%, 89.3% 3.8%, 89.3% 10.9%, 96.3% 10.9%, 96.3% 83.4%, 3.9% 83.4%); }
+  .floorScene .planImg[data-floor="4"]{ clip-path:polygon(4.5% 13.4%, 83.1% 13.4%, 83.1% 5.1%, 88.7% 5.1%, 88.7% 13.4%, 96.3% 13.4%, 96.3% 83.4%, 4.5% 83.4%); }
+  html:not(.dark) .floorScene .planImg{ filter:grayscale(1) contrast(1.9) brightness(1.12); mix-blend-mode:multiply; }
+  html.dark .floorScene .planImg{ filter:invert(1) grayscale(1) contrast(1.7) brightness(1.08); mix-blend-mode:screen; }
+  .floorScene .planImg.is-switching{ opacity:.2; transform:scale(1.02); }
+  .fs-side, .fs-aisle{ position:absolute; margin:0; font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:#64748B; white-space:nowrap; pointer-events:none; }
+  html.dark .fs-side, html.dark .fs-aisle{ color:#94A3B8; }
+  .fs-side{ top:50%; }
+  .fs-side-l{ left:-46px; transform:translate(-50%,-50%) rotate(-90deg); }
+  .fs-side-r{ right:-46px; transform:translate(50%,-50%) rotate(90deg); }
+  .fs-aisle{ left:0; right:0; text-align:center; font-size:9px; }
+  .fs-aisle-t{ top:2%; } .fs-aisle-b{ bottom:4%; }
+  .fs-plan{ position:relative; }
+  /* ไลน์บนผัง: ระบายลายเส้นเฉียงตามสถานะ */
+  .st-ok{ --hc:#6EE7B7; --hd:#059669; --hf:rgba(52,211,153,.34); --hb:rgba(52,211,153,.26); --hl:#047857; }
+  .st-warn{ --hc:#FCD34D; --hd:#D97706; --hf:rgba(251,191,36,.34); --hb:rgba(245,158,11,.22); --hl:#B45309; }
+  .st-bad{ --hc:#FDA4AF; --hd:#E11D48; --hf:rgba(251,113,133,.34); --hb:rgba(244,63,94,.22); --hl:#BE123C; }
+  .st-none{ --hc:#CBD5E1; --hd:#64748B; --hf:rgba(148,163,184,.26); --hb:rgba(148,163,184,.12); --hl:#475569; }
+  .floorScene .hot{ border-radius:3px; align-items:flex-start; justify-content:flex-start; padding:8px; border:1.5px solid var(--hd); background:repeating-linear-gradient(135deg, var(--hf) 0 2px, transparent 2px 7px), var(--hb); }
+  html.dark .floorScene .hot{ border-color:var(--hc); box-shadow:0 0 40px -12px var(--hc); }
+  .floorScene .hot:hover, .floorScene .hot.is-active{ transform:none; background:repeating-linear-gradient(135deg, var(--hf) 0 2px, transparent 2px 7px), var(--hf); border-color:var(--hd); box-shadow:0 0 0 1px var(--hd), 0 14px 30px -14px var(--hd); }
+  html.dark .floorScene .hot:hover, html.dark .floorScene .hot.is-active{ border-color:var(--hc); box-shadow:0 0 0 1px var(--hc), 0 0 46px -8px var(--hc); }
+  .floorScene .hot .hotLabel{ opacity:1; transform:none; display:inline-flex; align-items:center; gap:7px; height:26px; padding:0 11px; border-radius:999px; font-size:12px; font-weight:500; letter-spacing:.08em; background:rgba(255,255,255,.9); border:1px solid rgba(15,23,42,.14); box-shadow:0 6px 14px -8px rgba(15,23,42,.35); color:#0F172A; }
+  .floorScene .hot .hotLabel i{ width:7px; height:7px; border-radius:50%; background:var(--hd); }
+  .floorScene .hot .hotLabel b{ color:var(--hl); font-weight:700; letter-spacing:0; }
+  html.dark .floorScene .hot .hotLabel{ background:rgba(6,9,18,.78); border-color:rgba(255,255,255,.22); box-shadow:none; color:#F1F5F9; }
+  html.dark .floorScene .hot .hotLabel i{ background:var(--hc); box-shadow:0 0 8px var(--hc); }
+  html.dark .floorScene .hot .hotLabel b{ color:var(--hc); }
+  /* ท้าย: คำบรรยาย + ไลน์ในชั้นนี้ */
+  .fs-foot{ display:flex; flex-direction:column; align-items:center; gap:8px; margin-top:18px; text-align:center; }
+  .fs-caption{ margin:0; font-family:'Cormorant Garamond', serif; font-size:20px; font-weight:600; letter-spacing:.12em; color:#0F172A; }
+  .fs-hint{ margin:0; font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:#475569; }
+  html.dark .fs-caption{ color:#FFFFFF; } html.dark .fs-hint{ color:#94A3B8; }
+  .fs-lines{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:8px; }
+  html body .floorScene .floorLineRow{ width:auto; display:inline-flex; align-items:center; gap:10px; min-height:44px; padding:0 16px; border-radius:999px; background:rgba(255,255,255,.6); border:1px solid rgba(15,23,42,.18); }
+  html body .floorScene .floorLineRow:hover{ background:#fff; border-color:rgba(15,23,42,.35); }
+  html.dark body .floorScene .floorLineRow{ background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.28); }
+  html.dark body .floorScene .floorLineRow:hover{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.5); }
+  html.dark .floorScene .floorLineRow .text-slate-800{ color:#F1F5F9; }
+  html.dark .floorScene .floorLineRow .text-slate-400{ color:#94A3B8; }
+  html.dark .floorScene .floorLineRow .text-emerald-600{ color:#6EE7B7; }
+  html.dark .floorScene .floorLineRow .text-amber-600{ color:#FCD34D; }
+  html.dark .floorScene .floorLineRow .text-rose-600{ color:#FDA4AF; }
+  .floorScene .floorLineRow .flex-1{ flex:0 1 auto; text-align:left; }
+  /* จอใหญ่: ย่อให้กระชับ ไม่กินที่ทั้งจอ */
+  @media (min-width:901px){
+    .floorScene{ padding:22px 32px 18px; border-radius:24px; }
+    .fs-head{ left:32px; top:22px; gap:5px; }
+    .fs-title{ font-size:32px; }
+    .fs-kicker, .fs-meta, .fs-status{ font-size:10px; }
+    .fs-corner{ top:22px; right:32px; }
+    .fs-count{ font-size:18px; }
+    /* ผังใหญ่ขึ้นนิดนึง แต่กรอบการ์ดสูงเท่าเดิม: ดึงคำบรรยายขึ้นมาทับขอบล่างที่ว่างของรูป */
+    .fs-plan{ width:min(880px, calc(100% - 200px)); margin-top:92px; margin-bottom:-16px; }
+    .fs-side-l{ left:-30px; } .fs-side-r{ right:-30px; }
+    .fs-aisle-b{ bottom:auto; top:85.5%; }
+    html body .floorScene .fs-ruler{ right:28px; top:90px; gap:2px; }
+    /* ปุ่มเลือกชั้นใหญ่ขึ้น + ป้าย "เลือกชั้น" ให้รู้ว่ากดได้ */
+    html body .floorScene .fs-ruler::before{ content:"เลือกชั้น"; display:block; margin-bottom:4px; text-align:right; font-size:11.5px; letter-spacing:.16em; color:#64748B; }
+  }
+  /* เอาออกตามเจ้าของ: ป้ายข้าง/ทางเดิน, ป้าย LIVE, แถบตึกลายขวางด้านหลัง */
+  .floorScene .fs-side, .floorScene .fs-aisle, .floorScene .fs-live, .floorScene .fs-tower, .floorScene .fs-tower2{ display:none !important; }
+  @media (min-width:901px){
+    html.dark body .floorScene .fs-ruler::before{ color:#94A3B8; }
+    html body .floorScene .fs-ruler .floorTab{ min-width:84px; min-height:40px; gap:10px; font-size:22px; font-weight:600; font-family:'Cormorant Garamond', 'Kanit', serif; letter-spacing:.08em; }
+    html body .floorScene .fs-ruler .floorTab:hover:not(.active){ color:#475569; }
+    html.dark body .floorScene .fs-ruler .floorTab:hover:not(.active){ color:#CBD5E1; }
+    html body .floorScene .fs-ruler .floorTab span{ width:14px; }
+    html body .floorScene .fs-ruler .floorTab.active span{ width:40px; }
+    .fs-skyline{ height:130px; }
+    .floorScene .hot .hotLabel{ height:22px; padding:0 9px; font-size:11px; }
+    .fs-foot{ gap:5px; margin-top:8px; }
+    .fs-caption{ font-size:15px; }
+    .fs-lines{ margin-top:4px; }
+    html body .floorScene .floorLineRow{ min-height:36px; padding:0 13px; }
+  }
+
+  /* ---------- จอคอม: ตัวเลือกชั้นแบบบรรณาธิการ (เข้ากับหัว "FLOOR PLAN ——" / LEVEL 03) · ทางขวาของผัง · เส้นบางคั่นแต่ละชั้น
+     ชั้น 4 บน ชั้น 3 ล่าง · ชั้นที่เลือก: เลขเข้ม + ขีดสีด้านหน้า · ไฟสถานะของแต่ละไลน์ ---------- */
+  .floorScene .ft-num{ font:inherit; }
+  .floorScene .ft-txt{ display:none; }
+  @media (min-width:901px){
+    .fs-corner{ display:none !important; }
+    html body .floorScene .fs-ruler{ top:50%; right:36px; transform:translateY(-42%); flex-direction:column; align-items:stretch; gap:0; width:168px; padding:0; border-radius:0; background:transparent; border:0; box-shadow:none; }
+    html body .floorScene .fs-ruler::before{ content:"SELECT FLOOR"; position:static; display:flex; align-items:center; gap:10px; margin:0 0 10px; padding:0; width:auto; height:auto; border-radius:0; background:none; box-shadow:none; transform:none;
+      font-family:'Kanit', sans-serif; font-size:10px; font-weight:500; letter-spacing:.22em; color:#475569; }
+    html body .floorScene .fs-ruler::after{ content:none; }
+    html body .floorScene .fs-ruler .floorTab{ position:relative; display:grid; grid-template-columns:auto 1fr; align-items:center; column-gap:14px; width:100%; min-width:0; min-height:0; height:auto; padding:12px 4px 12px 16px; margin:0;
+      border-radius:0; border-top:1px solid rgba(15,23,42,.16); background:transparent !important; box-shadow:none !important; text-align:left; letter-spacing:0; color:#94A3B8; transition:color .3s ease, background .3s ease; }
+    html body .floorScene .fs-ruler .floorTab + .floorTab{ border-bottom:1px solid rgba(15,23,42,.16); }
+    html body .floorScene .fs-ruler .floorTab > span{ position:absolute; left:0; top:50%; display:block; width:2px; height:0; margin:0; background:#4338CA; transform:translateY(-50%); transition:height .4s cubic-bezier(.2,.75,.25,1); }
+    html body .floorScene .fs-ruler .floorTab.active > span{ height:58%; width:3px; }
+    html body .floorScene .fs-ruler .floorTab .ft-num{ font-family:'Cormorant Garamond', serif; font-size:38px; font-weight:700; line-height:1; letter-spacing:.02em; }
+    html body .floorScene .fs-ruler .floorTab .ft-num::before{ content:none; }
+    html body .floorScene .fs-ruler .floorTab .ft-txt{ display:flex; flex-direction:column; align-items:flex-start; gap:5px; }
+    html body .floorScene .fs-ruler .floorTab .ft-txt em{ font-style:normal; font-family:'Kanit', sans-serif; font-size:10px; font-weight:500; letter-spacing:.24em; color:inherit; }
+    html body .floorScene .fs-ruler .floorTab .ft-sub{ display:flex; gap:9px; font-family:'Cormorant Garamond', serif; font-size:15px; font-weight:700; letter-spacing:.06em; color:inherit; }
+    html body .floorScene .ft-sub i{ display:inline-flex; align-items:center; gap:4px; font-style:normal; }
+    html body .floorScene .ft-sub i::before{ content:""; width:5px; height:5px; border-radius:50%; background:var(--hd); }
+    html body .floorScene .fs-ruler .floorTab:hover:not(.active){ color:#475569; }
+    html body .floorScene .fs-ruler .floorTab.active{ color:#0F172A; }
+    html body .floorScene .fs-ruler .floorTab.active .ft-txt em{ color:#4338CA; }
+    html.dark body .floorScene .fs-ruler::before{ color:#94A3B8; }
+    html.dark body .floorScene .fs-ruler .floorTab{ border-color:rgba(255,255,255,.14); color:#475569; }
+    html.dark body .floorScene .fs-ruler .floorTab:hover:not(.active){ color:#94A3B8; }
+    html.dark body .floorScene .fs-ruler .floorTab.active{ color:#FFFFFF; }
+    html.dark body .floorScene .fs-ruler .floorTab > span{ background:#D6B97B; box-shadow:0 0 8px rgba(214,185,123,.7); }
+    html.dark body .floorScene .fs-ruler .floorTab.active .ft-txt em{ color:#D6B97B; }
+    html.dark body .floorScene .ft-sub i::before{ background:var(--hc); box-shadow:0 0 5px var(--hc); }
+    /* ผังอยู่กลางพื้นที่ทางซ้ายของตัวเลือกชั้น · กรอบการ์ดสูงเท่าเดิม */
+    .fs-plan, .fs-foot{ --fp-w:min(980px, calc(100% - 210px)); width:var(--fp-w); margin-left:calc((100% - 190px - var(--fp-w)) / 2); margin-right:auto; }
+    .fs-plan{ margin-top:calc(70px + (980px - var(--fp-w)) * .25); margin-bottom:-42px; }
+  }
+  @media (max-width:900px){
+    .floorScene{ padding:22px 16px 20px; border-radius:22px; }
+    .fs-head, .fs-corner, html body .floorScene .fs-ruler{ position:relative !important; left:auto; right:auto; top:auto; max-width:none; }
+    .fs-corner{ text-align:left; display:flex; align-items:center; gap:10px; margin-top:10px; }
+    .fs-live{ margin-top:0; }
+    html body .floorScene .fs-ruler{ flex-direction:row; gap:16px; margin-top:6px; }
+    html body .floorScene .fs-ruler .floorTab{ min-width:0; }
+    .fs-title{ font-size:38px; }
+    .fs-plan{ width:100%; margin-top:14px; }
+    .fs-side, .fs-aisle{ display:none; }
+    .fs-skyline{ height:110px; }
+    .fs-tower, .fs-tower2{ display:none !important; }
+    .floorScene .hot{ padding:3px; }
+    .floorScene .hot .hotLabel{ height:20px; padding:0 7px; font-size:9.5px; gap:5px; letter-spacing:.04em; }
+  }
+  /* มือถือ: หัวกระชับแถวเดียวกับปุ่มชั้น · ผังเต็มกว้าง · ท้ายสั้น */
+  @media (max-width:639px){
+    .floorScene{ display:grid; grid-template-columns:1fr auto; column-gap:12px; align-items:start; padding:18px 14px 16px; }
+    .fs-head{ grid-column:1; gap:5px; }
+    .fs-kicker{ font-size:9.5px; letter-spacing:.18em; gap:8px; }
+    .fs-kicker span{ width:16px; }
+    .fs-title{ font-size:30px; }
+    .fs-meta{ font-size:10px; letter-spacing:.12em; }
+    #lvlMeta, .fs-corner{ display:none !important; }
+    .fs-status{ font-size:10px; }
+    .fs-status span{ width:16px; }
+    html body .floorScene .fs-ruler{ grid-column:2; grid-row:1; align-self:center; margin:0; gap:2px; padding:3px; border-radius:999px; background:rgba(255,255,255,.55); border:1px solid rgba(15,23,42,.12); }
+    html body .floorScene .fs-ruler .floorTab{ min-height:30px; padding:0 12px; justify-content:center; border-radius:999px; font-size:12px; font-weight:600; color:#64748B; }
+    html body .floorScene .fs-ruler .floorTab span{ display:none; }
+    html body .floorScene .fs-ruler .floorTab.active{ background:#0F172A; color:#fff; }
+    html.dark body .floorScene .fs-ruler{ background:rgba(255,255,255,.05); border-color:rgba(214,185,123,.3); }
+    html.dark body .floorScene .fs-ruler .floorTab{ color:#94A3B8; }
+    html.dark body .floorScene .fs-ruler .floorTab.active{ background:linear-gradient(135deg,#E9D29A,#C9A55C); color:#1A1408; }
+    .fs-plan{ grid-column:1 / -1; width:auto; margin:14px -8px 0; }
+    .floorScene .hot{ align-items:center; justify-content:center; padding:2px; }
+    .floorScene .hot .hotLabel{ height:22px; padding:0 8px; font-size:10px; }
+    .fs-foot{ grid-column:1 / -1; gap:4px; margin-top:10px; }
+    .fs-caption{ font-size:12px; letter-spacing:.1em; white-space:nowrap; }
+    .fs-hint{ font-size:9px; letter-spacing:.12em; }
+    .fs-lines{ display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); width:100%; gap:8px; margin-top:6px; }
+    html body .floorScene .floorLineRow{ min-height:46px; padding:0 14px; }
+    .floorScene .floorLineRow .flex-1{ flex:1 1 auto; }
+  }
+
+  /* ---------- MOTION จัดเต็ม ---------- */
+  @keyframes f1LvlUp{ from{ opacity:0; transform:translateY(60%); } to{ opacity:1; transform:none; } }
+  @keyframes f1HotIn{ from{ opacity:0; transform:scale(.96); } to{ opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: no-preference){
+    .floorScene.lvl-swap #lvlNum{ animation:f1LvlUp .55s cubic-bezier(.2,.75,.25,1) both; }
+    .floorScene.lvl-swap .hot{ animation:f1HotIn .5s cubic-bezier(.2,.75,.25,1) both; animation-delay:calc(260ms + var(--k, 0) * 110ms); }
+    .floorScene.lvl-swap .fs-meta, .floorScene.lvl-swap .fs-status, .floorScene.lvl-swap .fs-caption{ animation:f1Fade .5s ease both; animation-delay:.12s; }
+  }
+  @keyframes f1Drift1{ from{ transform:translate(0,0) scale(1); } to{ transform:translate(120px,70px) scale(1.12); } }
+  @keyframes f1Drift2{ from{ transform:translate(0,0) scale(1.05); } to{ transform:translate(-110px,-60px) scale(.94); } }
+  @keyframes f1Drift3{ from{ transform:translate(0,0) scale(1); } to{ transform:translate(-140px,-40px) scale(1.15); } }
+  @keyframes f1Sheen{ from{ transform:translateX(-120%) skewX(-18deg); } to{ transform:translateX(260%) skewX(-18deg); } }
+  @keyframes f1Live{ 0%{ box-shadow:0 0 0 0 rgba(16,185,129,.55); } 70%{ box-shadow:0 0 0 8px rgba(16,185,129,0); } 100%{ box-shadow:0 0 0 0 rgba(16,185,129,0); } }
+  @media (prefers-reduced-motion: no-preference){
+    #f1Aurora .a1{ animation:f1Drift1 22s ease-in-out infinite alternate; }
+    #f1Aurora .a2{ animation:f1Drift2 26s ease-in-out infinite alternate; }
+    #f1Aurora .a3{ animation:f1Drift3 30s ease-in-out infinite alternate; }
+    .live-dot{ animation:f1Live 2s ease-out infinite; }
+    /* แสงกวาดผ่านหัวเว็บตอนเข้าหน้า */
+    .shell > header.f1-sheen::after{
+      content:""; position:absolute; top:-20%; bottom:-20%; left:0; width:28%; pointer-events:none;
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+      animation:f1Sheen 1.2s cubic-bezier(.3,.6,.2,1) both; animation-delay:calc(var(--f1d0, 0ms) + 150ms);
+    }
+    html.dark .shell > header.f1-sheen::after{ background:linear-gradient(90deg, transparent, rgba(214,185,123,.30), transparent); }
+    /* ปุ่มบนหัวเว็บ: ลอยขึ้นตอนชี้ ยุบตอนกด */
+    .shell > header button{ transition:transform .18s cubic-bezier(.2,.75,.25,1), background-color .2s ease, box-shadow .2s ease; }
+    .shell > header button:hover{ transform:translateY(-2px); }
+    .shell > header button:active{ transform:scale(.95); }
+    /* การ์ดไลน์ / การ์ดเล็ก: ชี้แล้วลอย + เรืองขอบ */
+    html:not(.dark) .lineCard:hover, html:not(.dark) .kpi:hover{ transform:translateY(-4px); box-shadow:inset 0 1px 0 #fff, 0 24px 44px -24px rgba(79,70,229,.50); border-color:#fff; }
+    html.dark .lineCard:hover, html.dark .kpi:hover{ transform:translateY(-4px); border-color:rgba(214,185,123,.38); box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(214,185,123,.10), 0 26px 50px -30px rgba(214,185,123,.35); }
+    .kpi{ transition:transform .22s cubic-bezier(.2,.75,.25,1), box-shadow .22s ease, border-color .22s ease; }
+    .lineCard{ transition:transform .22s cubic-bezier(.2,.75,.25,1), box-shadow .22s ease, border-color .22s ease; }
+    /* เมนู: ไอคอนขยับนิดตอนชี้ */
+    .nav-item{ transition:background-color .2s ease, color .2s ease, box-shadow .25s ease; }
+    .nav-item svg{ transition:transform .2s cubic-bezier(.2,.75,.25,1); }
+    .nav-item:hover svg{ transform:translateX(2px) scale(1.06); }
+  }
+
+  /* ===== เลือกวันที่: ปุ่ม + ปฏิทินเลือกช่วง ===== */
+  .dp-btn{ display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 12px 0 13px; border-radius:12px; font-size:12.5px; font-weight:600; white-space:nowrap; color:#1E1B4B; background:#fff; border:1px solid #DDE3F0; box-shadow:0 1px 2px rgba(15,23,42,.05); transition:border-color .2s ease, box-shadow .2s ease; cursor:pointer; }
+  .dp-btn svg{ color:#4F46E5; flex:none; }
+  .dp-btn .dp-caret{ color:#94A3B8; transition:transform .25s ease; }
+  .dp-btn:hover, .dp-btn[aria-expanded="true"]{ border-color:#A5B4FC; box-shadow:0 0 0 3px rgba(99,102,241,.14); }
+  .dp-btn[aria-expanded="true"] .dp-caret{ transform:rotate(180deg); }
+  .dp-pop{ position:fixed; z-index:200; width:340px; padding:16px; border-radius:18px; background:#fff; border:1px solid #E4E8F2; box-shadow:0 24px 60px -18px rgba(30,27,75,.35), 0 2px 6px rgba(15,23,42,.06); opacity:0; visibility:hidden; transform:translateY(-6px) scale(.98); transform-origin:top right; transition:opacity .18s ease, transform .22s cubic-bezier(.2,.75,.25,1), visibility 0s linear .22s; }
+  .dp-pop.show{ opacity:1; visibility:visible; transform:none; transition:opacity .18s ease, transform .22s cubic-bezier(.2,.75,.25,1), visibility 0s; }
+  .dp-title{ margin:0 0 10px; font-size:13px; font-weight:700; color:#0F172A; }
+  .dp-presets{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding-bottom:12px; margin-bottom:10px; border-bottom:1px solid #EEF1F6; }
+  .dp-preset{ height:30px; border-radius:9px; font-size:11.5px; font-weight:500; color:#475569; background:#fff; border:1px solid #E4E8F2; cursor:pointer; transition:all .15s ease; }
+  .dp-preset:hover{ border-color:#C7D2FE; color:#3730A3; }
+  .dp-preset.on{ background:#EEF2FF; border-color:#A5B4FC; color:#3730A3; font-weight:700; }
+  .dp-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .dp-month{ margin:0; font-size:13px; font-weight:700; color:#0F172A; }
+  .dp-arrow{ width:30px; height:30px; display:grid; place-items:center; border-radius:9px; color:#475569; cursor:pointer; }
+  .dp-arrow:hover:not(:disabled){ background:#F1F5F9; color:#0F172A; }
+  .dp-arrow:disabled{ opacity:.3; cursor:default; }
+  .dp-week, .dp-grid{ display:grid; grid-template-columns:repeat(7,1fr); }
+  .dp-week span{ text-align:center; font-size:10.5px; font-weight:500; color:#94A3B8; padding:4px 0 6px; }
+  .dp-day{ position:relative; height:38px; display:grid; place-items:center; font-size:12.5px; font-weight:500; color:#1E293B; cursor:pointer; background:transparent; border:0; }
+  .dp-day > i{ position:relative; z-index:1; width:34px; height:34px; display:grid; place-items:center; border-radius:10px; font-style:normal; transition:background-color .12s ease, color .12s ease; }
+  .dp-day:hover:not(:disabled) > i{ background:#F1F5F9; }
+  .dp-day.out{ color:#CBD5E1; }
+  .dp-day:disabled{ color:#D5DAE3; cursor:default; }
+  .dp-day.today > i{ box-shadow:inset 0 0 0 1px #A5B4FC; }
+  .dp-day.in::before{ content:""; position:absolute; inset:2px 0; background:#EEF2FF; }
+  .dp-day.start::before{ left:50%; } .dp-day.end::before{ right:50%; }
+  .dp-day.start.end::before{ display:none; }
+  .dp-day.start > i, .dp-day.end > i{ background:#4F46E5 !important; color:#fff; font-weight:700; box-shadow:0 6px 14px -6px rgba(79,70,229,.7); }
+  .dp-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; padding-top:12px; border-top:1px solid #EEF1F6; }
+  .dp-range{ margin:0; font-size:11px; color:#64748B; line-height:1.35; }
+  .dp-range b{ color:#0F172A; font-weight:700; }
+  .dp-actions{ display:flex; gap:6px; flex:none; }
+  .dp-cancel, .dp-apply{ height:32px; padding:0 14px; border-radius:9px; font-size:12px; font-weight:600; cursor:pointer; }
+  .dp-cancel{ color:#475569; background:#fff; border:1px solid #E4E8F2; }
+  .dp-cancel:hover{ background:#F8FAFC; }
+  .dp-apply{ color:#fff; background:#4F46E5; border:1px solid #4F46E5; box-shadow:0 6px 14px -6px rgba(79,70,229,.7); }
+  .dp-apply:hover{ background:#4338CA; }
+  .dp-shade{ position:fixed; inset:0; z-index:199; background:rgba(15,23,42,.35); opacity:0; visibility:hidden; transition:opacity .2s ease, visibility 0s linear .2s; }
+  .dp-shade.show{ opacity:1; visibility:visible; transition:opacity .2s ease, visibility 0s; }
+  /* มืด: ดำตัดทอง */
+  html.dark .dp-btn{ color:#F1F5F9; background:rgba(255,255,255,.04); border-color:rgba(214,185,123,.28); box-shadow:none; }
+  html.dark .dp-btn svg{ color:#D6B97B; } html.dark .dp-btn .dp-caret{ color:#94A3B8; }
+  html.dark .dp-btn:hover, html.dark .dp-btn[aria-expanded="true"]{ border-color:rgba(214,185,123,.6); box-shadow:0 0 0 3px rgba(214,185,123,.12); }
+  html.dark .dp-pop{ background:#0E131F; border-color:rgba(214,185,123,.22); box-shadow:0 30px 70px -20px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.03) inset; }
+  html.dark .dp-title, html.dark .dp-month, html.dark .dp-range b{ color:#F8FAFC; }
+  html.dark .dp-presets, html.dark .dp-foot{ border-color:rgba(255,255,255,.08); }
+  html.dark .dp-preset, html.dark .dp-cancel{ color:#CBD5E1; background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.12); }
+  html.dark .dp-preset:hover{ border-color:rgba(214,185,123,.5); color:#F3E3BC; }
+  html.dark .dp-preset.on{ background:rgba(214,185,123,.14); border-color:rgba(214,185,123,.6); color:#F3E3BC; }
+  html.dark .dp-arrow{ color:#94A3B8; } html.dark .dp-arrow:hover:not(:disabled){ background:rgba(255,255,255,.06); color:#fff; }
+  html.dark .dp-day{ color:#E2E8F0; } html.dark .dp-day.out{ color:#475569; } html.dark .dp-day:disabled{ color:#334155; }
+  html.dark .dp-day:hover:not(:disabled) > i{ background:rgba(255,255,255,.07); }
+  html.dark .dp-day.today > i{ box-shadow:inset 0 0 0 1px rgba(214,185,123,.6); }
+  html.dark .dp-day.in::before{ background:rgba(214,185,123,.12); }
+  html.dark .dp-day.start > i, html.dark .dp-day.end > i{ background:linear-gradient(135deg,#E9D29A,#C9A55C) !important; color:#1A1408; box-shadow:0 6px 16px -6px rgba(214,185,123,.7); }
+  html.dark .dp-cancel:hover{ background:rgba(255,255,255,.07); }
+  html.dark .dp-apply{ color:#1A1408; background:linear-gradient(135deg,#E9D29A,#C9A55C); border-color:#D6B97B; box-shadow:0 6px 16px -6px rgba(214,185,123,.6); }
+  html.dark .dp-apply:hover{ filter:brightness(1.07); }
+  /* มือถือ: เด้งขึ้นจากด้านล่าง */
+  @media (max-width:639px){
+    .dp, .dp-btn{ width:100%; } .dp-btn{ justify-content:flex-start; } .dp-btn .dp-caret{ margin-left:auto; }
+    .dp-pop{ left:0 !important; right:0; top:auto !important; bottom:0; width:auto; border-radius:22px 22px 0 0; padding:18px 16px calc(16px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .32s cubic-bezier(.2,.75,.25,1), visibility 0s linear .32s; opacity:1; }
+    .dp-pop.show{ transform:none; transition:transform .32s cubic-bezier(.2,.75,.25,1), visibility 0s; }
+    .dp-day{ height:42px; } .dp-day > i{ width:38px; height:38px; }
+    .dp-preset{ height:34px; }
+  }
+
+  /* ---------- เฉพาะโรง 2: ชั้นเดียว (ไม่มีตัวเลือกชั้น) · รูปผัง 1394×472 · 6 ไลน์กรอบเล็ก ---------- */
+  html body .floorScene .planWrap{ aspect-ratio:1394 / 472; }
+  /* ตัดขอบตามรูปตึก (รวมห้องเล็กที่ยื่นด้านบนขวา) ไม่ให้ต้นไม้ / พื้นหลังเดิมของรูปโผล่ */
+  .floorScene .planImg[data-floor="2"]{ clip-path:polygon(4.1% 12.6%, 83.3% 12.6%, 83.3% 6.0%, 88.0% 6.0%, 88.0% 12.6%, 95.6% 12.6%, 95.6% 83.4%, 4.1% 83.4%); }
+  .floorScene .hot{ align-items:center; justify-content:center; padding:0; }
+  .floorScene .hot .hotLabel{ height:24px; padding:0 9px; font-size:11.5px; gap:6px; }
+  @media (min-width:901px){
+    /* ไม่มีตัวเลือกชั้นทางขวา: ผังกว้างเต็มการ์ด อยู่กลาง */
+    .fs-plan, .fs-foot{ --fp-w:min(1240px, calc(100% - 40px)); width:var(--fp-w); margin-left:auto; margin-right:auto; }
+    .fs-plan{ margin-top:112px; margin-bottom:-46px; }
+  }
+  @media (max-width:900px){ .floorScene .hot .hotLabel{ height:20px; padding:0 7px; font-size:10px; } }
+  /* มือถือ: กรอบไลน์เล็กมาก → เหลือแค่เลขไลน์ ดูยอดจากปุ่มด้านล่าง */
+  @media (max-width:639px){
+    .floorScene{ display:block; }
+    .floorScene .hot .hotLabel{ height:auto; padding:0; gap:0; background:none !important; border:0 !important; box-shadow:none !important; font-size:9px; font-weight:700; letter-spacing:.02em; }
+    .floorScene .hot .hotLabel i, .floorScene .hot .hotLabel b{ display:none; }
+    .fs-plan{ margin:14px -6px 0; }
+  }
 </style>
 </head>
 <body class="pb-10">
@@ -237,6 +748,47 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
   </div>
 </div>
 
+<div id="f1Aurora" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
+
+<!-- ======================= APP NAV (เมนูซ้าย แบบโรง 1) ======================= -->
+<div id="appTopbar">
+  <button type="button" class="nav-toggle" onclick="F2Nav.open()" aria-label="เปิดเมนู" style="color:#fff;margin-left:0">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <span style="font-weight:600;font-size:16px">Production Dashboard</span>
+</div>
+<div id="appNavBackdrop" onclick="F2Nav.close()"></div>
+<aside id="appNav" aria-label="เมนูหลัก">
+  <div class="nav-brand">
+    <div class="nav-logo" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D6B97B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l5 3V10l5 3V6l8 4v11z"/><path d="M3 21h18"/></svg>
+    </div>
+    <div class="nav-text" style="line-height:1.2"><div style="font-weight:600;font-size:15px">Factory 2</div><div style="font-size:11px;color:#93A0B4">Production System</div></div>
+    <button type="button" class="nav-toggle desk" onclick="F2Nav.toggleCollapse()" aria-label="ย่อ / ขยายเมนู" title="ย่อ / ขยายเมนู">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>
+    </button>
+    <button type="button" class="nav-toggle nav-close mob" onclick="F2Nav.close()" aria-label="ปิดเมนู">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <nav class="nav-list">
+    <a class="nav-item is-active" href="#" onclick="F2Nav.home(event)" aria-current="page" title="หน้าหลัก">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>
+      <span class="nav-text">หน้าหลัก</span>
+    </a>
+    <a class="nav-item" href="#" onclick="F2Nav.search(event)" title="ค้นหา LOT">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="nav-text">ค้นหา LOT</span>
+    </a>
+  </nav>
+  <div class="nav-foot">
+    <div class="nav-user" title="ผู้ใช้">
+      <span class="nav-avatar" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
+      <span class="nav-text nav-user-text"><span id="displayName" class="nav-user-name">Guest User</span><span class="nav-user-sub">โรง 2</span></span>
+    </div>
+  </div>
+</aside>
+
 <div class="shell px-3 md:px-6 pt-4 md:pt-6">
 
   <!-- ======================= HEADER ======================= -->
@@ -244,39 +796,35 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
           style="background:linear-gradient(120deg,#0F172A 0%,#16233F 55%,#1E3356 100%)">
     <div class="flex flex-wrap items-center gap-3 justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-11 h-11 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-xl">🏭</div>
+        <div class="hd-logo w-11 h-11 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 20h20"/><path d="M4 20V9l5 3V9l5 3V5h6v15"/></svg></div>
         <div>
-          <h1 class="text-lg md:text-xl font-bold leading-tight">Factory 2 Production Dashboard</h1>
+          <h1 class="text-lg md:text-xl font-bold leading-tight">Production Dashboard</h1>
           <p class="text-[11px] text-white/60">ติดตามการผลิตแบบเรียลไทม์ • LINE 201–206</p>
         </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
         <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-2 h-[48px]">
-          <span class="text-sm">📅</span>
+          <span class="hd-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
           <div class="leading-tight">
             <p id="hdDate" class="text-xs font-semibold">-</p>
             <p id="hdDay" class="text-[10px] text-white/55">-</p>
           </div>
         </div>
         <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-2 h-[48px]">
-          <span class="text-sm">🕒</span>
+          <span class="live-dot" aria-hidden="true"></span>
           <p id="hdClock" class="text-sm font-bold tabular-nums">--:--:--</p>
         </div>
-        <button onclick="openLotSearch()" class="bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl px-3 text-sm transition h-[48px]" title="ค้นหา LOT">🔍</button>
-        <button id="themeBtn" type="button" onclick="toggleDashTheme()" class="bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl px-3 text-sm transition h-[48px]" title="สลับโหมดกลางวัน / กลางคืน" aria-label="สลับโหมดกลางวัน / กลางคืน"><span class="ico-moon">🌙</span><span class="ico-sun">☀️</span></button>
-        <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-2 h-[48px]">
-          <span class="text-sm">👤</span>
-          <span id="displayName" class="text-xs font-semibold">Guest User</span>
-        </div>
+        <button onclick="openLotSearch()" class="bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl px-3 text-sm transition h-[48px]" title="ค้นหา LOT" aria-label="ค้นหา LOT"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+        <button id="themeBtn" type="button" onclick="toggleDashTheme()" class="bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl px-3 text-sm transition h-[48px]" title="สลับโหมดกลางวัน / กลางคืน" aria-label="สลับโหมดกลางวัน / กลางคืน"><span class="ico-moon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/></svg></span><span class="ico-sun"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span></button>
       </div>
     </div>
   </header>
 
   <!-- ======================= DAILY SUMMARY ======================= -->
-  <section class="mt-4 grid grid-cols-1 xl:grid-cols-[1fr_260px] gap-4">
+  <section class="mt-4 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_260px] gap-4">
     <div class="card soft p-5">
-      <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
         <div>
           <h2 class="font-bold text-slate-800">Daily Summary</h2>
           <p id="selectedDateText" class="text-xs text-indigo-600 font-semibold mt-0.5">Data date: -</p>
@@ -289,14 +837,32 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
             <button type="button" data-mode="GAP" onclick="setDailyChartMode('GAP')" class="dailyChartModeBtn px-3 py-1.5 rounded-lg text-[10px] font-extrabold transition">GAP</button>
           </div>
 
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-2xl">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-slate-500 w-9 shrink-0">From</span>
-              <input type="date" id="datePicker" class="flex-1 min-w-0 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-semibold focus:outline-none focus:border-indigo-400">
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-slate-500 w-6 shrink-0">To</span>
-              <input type="date" id="datePickerTo" class="flex-1 min-w-0 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-semibold focus:outline-none focus:border-indigo-400">
+          <!-- เลือกวันที่ (แบบโรง 1): ปุ่มเดียว เปิดปฏิทินเลือกช่วง + ทางลัด · ช่อง input เดิมซ่อนไว้ โค้ดเดิมยังอ่านค่าจากมัน -->
+          <div class="dp" id="dpRoot">
+            <input type="date" id="datePicker" class="hide" tabindex="-1" aria-hidden="true">
+            <input type="date" id="datePickerTo" class="hide" tabindex="-1" aria-hidden="true">
+            <button type="button" id="dpBtn" class="dp-btn" onclick="F2DatePick.toggle()" aria-haspopup="dialog" aria-expanded="false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+              <span id="dpBtnText">วันนี้</span>
+              <svg class="dp-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div id="dpPop" class="dp-pop" role="dialog" aria-label="เลือกช่วงวันที่">
+              <p class="dp-title">เลือกช่วงวันที่</p>
+              <div class="dp-presets" id="dpPresets"></div>
+              <div class="dp-nav">
+                <button type="button" class="dp-arrow" onclick="F2DatePick.move(-1)" aria-label="เดือนก่อน"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+                <p id="dpMonth" class="dp-month">-</p>
+                <button type="button" class="dp-arrow" onclick="F2DatePick.move(1)" aria-label="เดือนถัดไป"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+              </div>
+              <div class="dp-week"><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span><span>อา</span></div>
+              <div id="dpGrid" class="dp-grid"></div>
+              <div class="dp-foot">
+                <p class="dp-range"><span>ช่วง</span> <b id="dpRange">-</b></p>
+                <div class="dp-actions">
+                  <button type="button" class="dp-cancel" onclick="F2DatePick.close()">ยกเลิก</button>
+                  <button type="button" id="dpApply" class="dp-apply" onclick="F2DatePick.apply()">ใช้งาน</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -307,7 +873,7 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
 
     <div class="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-3">
       <div class="card soft kpi flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">✅</div>
+        <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg></div>
         <div>
           <p class="text-[11px] text-slate-400 font-semibold">ผลิตได้แล้ววันนี้</p>
           <p class="text-xl font-extrabold text-emerald-600"><span id="kpiActual">0</span> <span class="text-xs font-semibold text-slate-400">ชิ้น</span></p>
@@ -315,7 +881,7 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
       </div>
 
       <div class="card soft kpi flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">🎯</div>
+        <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></div>
         <div>
           <p class="text-[11px] text-slate-400 font-semibold">เป้าหมายรวม</p>
           <p class="text-xl font-extrabold text-slate-800"><span id="kpiTarget">0</span> <span class="text-xs font-semibold text-slate-400">ชิ้น</span><span id="kpiAvgHoursWrap" class="hidden"> <span class="text-slate-300 font-semibold">/</span> <span id="kpiAvgHours">-</span> <span class="text-xs font-semibold text-slate-400">ชม.</span></span></p>
@@ -325,7 +891,7 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
 
       <div class="card soft kpi">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-lg">📈</div>
+          <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-7"/></svg></div>
           <div>
             <p class="text-[11px] text-slate-400 font-semibold">คืบหน้าทั้งโรงงาน</p>
             <p class="text-xl font-extrabold text-slate-800"><span id="kpiPct">0%</span></p>
@@ -348,18 +914,29 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
   </section>
 
   <!-- ======================= FLOOR PLAN (แบบโรง 1) ======================= -->
+  <!-- ผังแบบโปร่ง: เส้นผังลอยบนฉาก (สว่าง = เส้นดำ · มืด = เส้นขาว) · LEVEL ตัวใหญ่ · ไลน์ระบายลายตามสถานะ · โรง 2 มีชั้นเดียว -->
   <section class="mt-5">
-    <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
-      <div>
-        <h2 class="font-bold text-slate-800">ผังไลน์การผลิต</h2>
-        <p class="text-xs text-slate-400">ชี้ที่ไลน์เพื่อดูยอดย่อ คลิกเพื่อเปิดรายละเอียดทั้งหมด</p>
+    <div class="card floorScene">
+      <div class="fs-bg" aria-hidden="true">
+        <i class="fs-glow1"></i><i class="fs-glow2"></i>
+        <svg class="fs-skyline" viewBox="0 0 1440 230" preserveAspectRatio="none">
+          <path class="fs-roof" d="M0 150 L120 150 L120 120 L170 95 L220 120 L270 95 L320 120 L320 150 L420 150 L420 110 L520 110 L520 150 L920 150 L920 105 L980 80 L1040 105 L1100 80 L1160 105 L1160 150 L1260 150 L1260 115 L1360 115 L1360 150 L1440 150 L1440 230 L0 230 Z"/>
+          <g class="fs-trees"><circle cx="60" cy="150" r="46"/><circle cx="110" cy="128" r="38"/><circle cx="20" cy="120" r="30"/><circle cx="210" cy="160" r="40"/><circle cx="1230" cy="160" r="40"/><circle cx="1330" cy="140" r="48"/><circle cx="1390" cy="118" r="36"/><circle cx="1420" cy="160" r="40"/></g>
+        </svg>
       </div>
-    </div>
-    <div class="floorLayout">
-      <div class="floorMain soft">
+
+      <div class="fs-head">
+        <p class="fs-kicker"><span></span>FLOOR PLAN · ผังไลน์การผลิต</p>
+        <h2 class="fs-title">LEVEL <span>02</span></h2>
+        <p class="fs-meta">LINE 201 · LINE 202 · LINE 203 · LINE 204 · LINE 205 · LINE 206</p>
+        <p id="lvlMeta" class="fs-meta fs-meta2">โรง 2 · พื้นที่ผลิตแผนกเย็บ</p>
+        <p id="lvlStatus" class="fs-status"><span></span>-</p>
+      </div>
+
+      <div class="fs-plan">
         <div id="planWrap" class="planWrap">
           <div class="planCanvas">
-            <img class="planImg" src="floor2.jpg" alt="ผังไลน์การผลิต โรง 2">
+            <img class="planImg" data-floor="2" src="floor2_plan.jpg" alt="ผังไลน์การผลิต โรง 2">
             <div id="hotspots"></div>
           </div>
           <div id="planTip">
@@ -381,15 +958,12 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
           </div>
         </div>
       </div>
-      <aside class="guideColumn" aria-label="ข้อมูลประกอบผังไลน์การผลิต">
-        <div class="guideTitle soft">ไลน์ทั้งหมด</div>
-        <div id="lineSelector" class="lineShortcutBody soft"></div>
-        <div class="guideTitle soft">วิธีใช้งาน</div>
-        <div class="guideBody soft space-y-3">
-          <div class="guideStep"><span class="guideNo">1</span><div><p class="text-xs font-bold text-slate-700">ดูข้อมูลแบบย่อ</p><p class="text-[10px] text-slate-400 mt-0.5">วางเมาส์บน LINE เพื่อดูภาพรวมการผลิต จุดสีมุมกรอบคือสถานะ</p></div></div>
-          <div class="guideStep"><span class="guideNo">2</span><div><p class="text-xs font-bold text-slate-700">ดูรายละเอียดเพิ่มเติม</p><p class="text-[10px] text-slate-400 mt-0.5">คลิก LINE ในผัง หรือปุ่มด้านบน เพื่อเปิดข้อมูลทั้งหมด</p></div></div>
-        </div>
-      </aside>
+
+      <div class="fs-foot">
+        <p class="fs-caption">TYPICAL FLOOR PLAN OF LEVEL 02</p>
+        <p class="fs-hint">ชี้ที่ไลน์เพื่อดูยอดย่อ · กดเพื่อเปิดรายละเอียด</p>
+        <div id="lineSelector" class="fs-lines" aria-label="ไลน์ในโรง 2"></div>
+      </div>
     </div>
   </section>
 
@@ -566,24 +1140,60 @@ function dashBorder(){return isDashDark()?"rgba(148,163,184,0.10)":"rgba(0,0,0,0
 function applyDashChartTheme(){
   Chart.defaults.color=dashTick();
   Chart.defaults.borderColor=dashBorder();
-  [factoryChart,hourlyChart,cumulativeChart].forEach(function(ch){
+  [hourlyChart,cumulativeChart].forEach(function(ch){
     if(!ch)return;
     var sc=(ch.options&&ch.options.scales)||{};
     Object.keys(sc).forEach(function(k){
       var axis=sc[k];
-      if(axis.grid&&axis.grid.display!==false)axis.grid.color=ch===factoryChart?dashGrid():dashBorder();
+      if(axis.grid&&axis.grid.display!==false)axis.grid.color=dashBorder();
       if(axis.ticks)axis.ticks.color=dashTick();
     });
     var lg=ch.options&&ch.options.plugins&&ch.options.plugins.legend;
     if(lg&&lg.labels)lg.labels.color=dashTick();
     ch.update("none");
   });
+  // กราฟสรุปรายวันใช้สีแท่ง/ลายตามธีม ต้องวาดใหม่
+  if(dailyChartLines.length)renderDailyChart(dailyChartLines,false);
 }
+// สลับธีมแบบโรง 1: วงกลมขยายจากปุ่ม (เบราว์เซอร์ที่รองรับ) · ไม่รองรับ = ม่านสีธีมใหม่ขยายจากปุ่มแล้วจางออก
 function toggleDashTheme(){
+  if(toggleDashTheme._busy)return;
+  var btn=el("themeBtn");
+  var calm=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(calm||!btn){applyDashThemeNow_();return}
+  var r=btn.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+  var end=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
+  var circle=["circle(0px at "+x+"px "+y+"px)","circle("+end+"px at "+x+"px "+y+"px)"];
+  if(document.startViewTransition){
+    toggleDashTheme._busy=true;
+    var vt=document.startViewTransition(applyDashThemeNow_);
+    vt.ready.then(function(){
+      document.documentElement.animate({clipPath:circle},{duration:700,easing:"cubic-bezier(.2,.75,.25,1)",pseudoElement:"::view-transition-new(root)"});
+    }).catch(function(){});
+    vt.finished.finally(function(){toggleDashTheme._busy=false;replayAfterTheme_()});
+    return;
+  }
+  if(!document.body.animate){applyDashThemeNow_();return}
+  var cover=document.createElement("div");
+  cover.className="theme-curtain "+(isDashDark()?"to-light":"to-dark");
+  document.body.appendChild(cover);
+  toggleDashTheme._busy=true;
+  var done=function(){cover.remove();toggleDashTheme._busy=false};
+  cover.animate({clipPath:circle},{duration:560,easing:"cubic-bezier(.4,0,.2,1)",fill:"forwards"}).finished.then(function(){
+    applyDashThemeNow_();
+    replayAfterTheme_();
+    cover.animate({opacity:[1,0]},{duration:420,easing:"ease-out",fill:"forwards"}).finished.then(done,done);
+  },function(){applyDashThemeNow_();done()});
+}
+function applyDashThemeNow_(){
   var dark=!isDashDark();
   document.documentElement.classList.toggle("dark",dark);
   try{localStorage.setItem("dashTheme",dark?"dark":"light")}catch(e){}
   applyDashChartTheme();
+}
+// หลังสลับธีม: หลอด % ในการ์ดวิ่งใหม่แบบนุ่มๆ (ทั้งหน้าจางเข้า ไม่ไล่ทีละกล่อง)
+function replayAfterTheme_(){
+  if(window.__f2DashReady)F2Motion.enter(document.querySelector(".shell"),{soft:true});
 }
 Chart.defaults.color=dashTick();
 Chart.defaults.borderColor=dashBorder();
@@ -1279,18 +1889,70 @@ function renderDailyChart(lines,remember){
   var actualData=lines.map(function(d){return num(d.actual)});
   var targetData=lines.map(function(d){return num(d.target)});
   var remaining=targetData.map(function(t,i){return Math.max(0,t-actualData[i])});
+  var sts=lines.map(function(d){return lineStatusOf_(d)});
+
+  // เขียว = ผลิตแล้ว (ล่าง ไล่สี) · แดงอ่อนลายเส้นเฉียง = ยังขาดเป้า (บน) แบบโรง 1
+  var dark=isDashDark();
+  var GREEN=dark?["#34D399","#059669"]:["#34D399","#10B981"];
+  var greenFill=function(c){
+    var area=c.chart.chartArea;
+    if(!area)return GREEN[1];
+    var g=c.chart.ctx.createLinearGradient(0,area.bottom,0,area.top);
+    g.addColorStop(0,GREEN[1]);g.addColorStop(1,GREEN[0]);
+    return g;
+  };
+  var GAP_LINE=dark?"rgba(251,113,133,0.55)":"rgba(244,63,94,0.48)";
+  var GAP_TEXT=dark?"#FDA4AF":"#E11D48";
+  var GAP_CHIP=dark?"#3A2431":"#FDDDE3";
+  var GAP_FILL=(function(){
+    var cv=document.createElement("canvas");cv.width=cv.height=9;
+    var x=cv.getContext("2d");
+    x.fillStyle=dark?"rgba(251,113,133,0.20)":"rgba(244,63,94,0.17)";x.fillRect(0,0,9,9);
+    x.strokeStyle=dark?"rgba(251,113,133,0.40)":"rgba(244,63,94,0.32)";x.lineWidth=1.3;
+    x.beginPath();x.moveTo(-1,10);x.lineTo(10,-1);x.moveTo(-1,1);x.lineTo(1,-1);x.moveTo(8,10);x.lineTo(10,8);x.stroke();
+    return ctx.createPattern(cv,"repeat");
+  })();
+  var BAR_SIZE={maxBarThickness:170,categoryPercentage:.8,barPercentage:.92};
+  var valueLabel=function(color){return {
+    anchor:"center",align:"center",color:color,font:{family:"Kanit",size:12,weight:"700"},
+    formatter:function(v){return v>0?v.toLocaleString():""}
+  }};
+  // ความสูงจริงของแท่ง (px) ไว้ตัดสินว่าตัวเลขใส่ในแท่งพอไหม
+  var barPx=function(c){
+    var bar=c.chart.getDatasetMeta(c.datasetIndex).data[c.dataIndex];
+    if(!bar)return 0;
+    var pp=bar.getProps(["y","base"],true);
+    return Math.abs(pp.base-pp.y);
+  };
+  var THIN=26;
+  var actualSet=function(extra){return Object.assign({
+    label:"ผลิตแล้ว",data:actualData,backgroundColor:greenFill,
+    borderRadius:10,borderSkipped:false,
+    datalabels:Object.assign(valueLabel("#fff"),{display:function(c){return barPx(c)>=18}})
+  },BAR_SIZE,extra)};
+  // ส่วนขาดเป้าบางเกินป้ายตัวเลข → ยกป้ายไปไว้เหนือแท่ง ไม่ให้ทะลุขอบ
+  var gapSet=function(extra){return Object.assign({
+    label:"ส่วนต่าง",data:remaining,backgroundColor:GAP_FILL,
+    borderColor:GAP_LINE,borderWidth:1.2,borderRadius:10,borderSkipped:false,
+    datalabels:Object.assign(valueLabel(GAP_TEXT),{
+      anchor:function(c){return barPx(c)<THIN?"end":"center"},
+      align:function(c){return barPx(c)<THIN?"end":"center"},
+      offset:4,
+      backgroundColor:function(c){return c.dataset.data[c.dataIndex]>0?GAP_CHIP:null},borderRadius:7,padding:{top:3,bottom:2,left:8,right:8}
+    })
+  },BAR_SIZE,extra)};
+
   var datasets=[];
   var stacked=false;
-
   if(dailyChartMode==="ACTUAL"){
-    datasets=[{label:"Actual",data:actualData,backgroundColor:"#10B981",borderRadius:8}];
+    datasets=[actualSet()];
   }else if(dailyChartMode==="GAP"){
-    datasets=[{label:"Target Gap",data:remaining,backgroundColor:"#EF4444",borderRadius:8}];
+    datasets=[gapSet()];
   }else{
     stacked=true;
     datasets=[
-      {label:"Actual",data:actualData,backgroundColor:"#10B981",borderRadius:{topLeft:0,topRight:0,bottomLeft:8,bottomRight:8}},
-      {label:"Target Gap",data:remaining,backgroundColor:"#EF4444",borderRadius:{topLeft:8,topRight:8,bottomLeft:0,bottomRight:0}}
+      actualSet({borderRadius:function(c){return remaining[c.dataIndex]>0?{topLeft:0,topRight:0,bottomLeft:10,bottomRight:10}:10}}),
+      gapSet({borderRadius:{topLeft:10,topRight:10,bottomLeft:0,bottomRight:0},borderSkipped:"bottom"})
     ];
   }
 
@@ -1298,27 +1960,54 @@ function renderDailyChart(lines,remember){
     type:"bar",
     data:{labels:labels,datasets:datasets},
     options:{
-      responsive:true,maintainAspectRatio:false,animation:false,
+      responsive:true,maintainAspectRatio:false,
+      layout:{padding:{top:18}},
+      animation:{
+        duration:900,easing:"easeOutQuart",
+        delay:function(c){return (c.type==="data"&&c.mode==="default")?c.dataIndex*90+c.datasetIndex*140:0}
+      },
+      onHover:function(evt,items){if(evt.native)evt.native.target.style.cursor=items.length?"pointer":"default"},
       onClick:function(evt,items){
         if(!items.length)return;
         var item=lines[items[0].index];
         if(item&&item.line)openLine(String(item.line));
       },
       plugins:{
-        legend:{position:"top",labels:{font:{family:"Kanit",size:11},usePointStyle:true}},
-        datalabels:{
-          anchor:"center",align:"center",color:"#fff",
-          font:{weight:"bold",size:11,family:"Kanit"},
-          formatter:function(v){return v>0?Number(v).toLocaleString():""}
+        legend:{
+          position:"top",align:"end",
+          labels:{
+            font:{family:"Kanit",size:11},color:dashTick(),boxWidth:10,boxHeight:10,padding:14,usePointStyle:true,
+            generateLabels:function(ch){return ch.data.datasets.map(function(ds,i){
+              var isActual=ds.label==="ผลิตแล้ว";
+              return {text:ds.label,datasetIndex:i,pointStyle:"rectRounded",lineWidth:isActual?0:1.2,
+                fillStyle:isActual?(dark?"#34D399":"#10B981"):GAP_FILL,strokeStyle:isActual?"transparent":GAP_LINE,
+                fontColor:dashTick(),hidden:!ch.isDatasetVisible(i)};
+            })}
+          }
         },
+        datalabels:{clip:false},
         tooltip:{
-          bodyFont:{family:"Kanit"},titleFont:{family:"Kanit"},
-          callbacks:{footer:function(items){return "Target "+targetData[items[0].dataIndex].toLocaleString()+" pcs"}}
+          backgroundColor:dark?"rgba(14,19,31,0.96)":"rgba(255,255,255,0.97)",borderColor:dark?"rgba(214,185,123,0.35)":"rgba(99,102,241,0.18)",borderWidth:1,
+          titleColor:dark?"#F8FAFC":"#0F172A",bodyColor:dark?"#CBD5E1":"#475569",footerColor:dark?"#D6B97B":"#4F46E5",
+          padding:12,cornerRadius:12,displayColors:false,caretSize:6,
+          titleFont:{family:"Kanit",size:13,weight:"700"},bodyFont:{family:"Kanit",size:12},footerFont:{family:"Kanit",size:12,weight:"700"},
+          callbacks:{
+            label:function(){return ""},
+            afterBody:function(it){
+              var i=it[0].dataIndex;
+              return ["ผลิตแล้ว  "+actualData[i].toLocaleString()+" ชิ้น","เป้าทั้งวัน  "+targetData[i].toLocaleString()+" ชิ้น","ยังขาด  "+remaining[i].toLocaleString()+" ชิ้น"];
+            },
+            footer:function(it){
+              var st=sts[it[0].dataIndex];
+              if(!st||st.key==="idle")return st&&st.label?st.label:"รอเริ่มผลิต";
+              return dashboardData.isRange?("ผลิตได้ "+st.pct+"% ของเป้ารวม"):("เทียบเป้าตอนนี้ "+st.pct+"% · "+st.label);
+            }
+          }
         }
       },
       scales:{
-        x:{stacked:stacked,grid:{display:false},ticks:{font:{family:"Kanit",size:11}}},
-        y:{stacked:stacked,beginAtZero:true,grid:{color:dashGrid()},ticks:{font:{family:"Kanit",size:10}}}
+        x:{stacked:stacked,grid:{display:false},border:{display:false},ticks:{font:{family:"Kanit",size:11,weight:"600"},color:dashTick()}},
+        y:{stacked:stacked,beginAtZero:true,border:{display:false,dash:[3,4]},grid:{color:dark?"rgba(148,163,184,0.16)":"rgba(100,116,139,0.22)",drawTicks:false},ticks:{font:{family:"Kanit",size:10},color:dashTick(),padding:8}}
       }
     }
   });
@@ -1447,43 +2136,63 @@ function hydrateCardShipments_(){
   });
 }
 
-// V13: แถบเลือกไลน์ — จุดสีตามสถานะ + % คืบหน้า จิ้มแล้วเปิดรายละเอียด
+// รายการไลน์ใต้ผัง (แบบโรง 1): จุดสีตามสถานะ + รุ่น + % เทียบเป้าตอนนี้ จิ้มแล้วเปิดรายละเอียด
 function renderLineSelector(lines){
   renderHotspots();
   var wrap=el("lineSelector");
   if(!wrap)return;
-  var dateStr=dashboardData.date||currentRange.from;
-  var dotColor={ok:"#10B981",warn:"#F59E0B",bad:"#F43F5E",idle:"#CBD5E1"};
+  var dot={ok:"#10B981",warn:"#F59E0B",bad:"#F43F5E",idle:"#CBD5E1"};
+  var txt={ok:"text-emerald-600",warn:"text-amber-600",bad:"text-rose-600",idle:"text-slate-400"};
   wrap.innerHTML=LINE_CODES.map(function(code){
-    var item=(lines||[]).find(function(x){return String(x.line)===code})||{line:code};
-    var st=dashboardData.isRange?{key:num(item.target)?"ok":"idle"}:lineStatus(item,dateStr);
-    var p=num(item.target)?Math.round(pct(num(item.actual),num(item.target))):0;
-    var selected=String(selectedLine)===code;
-    return '<button type="button" class="lineSelBtn'+(selected?' active':'')+'" onclick="openLine(\''+code+'\')" title="'+esc(st.label||"")+'">'+
-      '<span class="flex items-center gap-1.5 text-xs font-extrabold text-slate-800"><span class="lineDot" style="background:'+(dotColor[st.key]||dotColor.idle)+'"></span>LINE '+code+'</span>'+
-      '<span class="text-[10px] font-semibold text-slate-400">'+(num(item.target)?(p+'% • '+fmt(item.actual)+'/'+fmt(item.target)):'ยังไม่ตั้งเป้า')+'</span>'+
+    var item=lineItemOf_(code);
+    var st=lineStatusOf_(item);
+    var model=String(item.active_smpl||item.active_model||item.model1||"").trim();
+    return '<button type="button" class="floorLineRow'+(String(selectedLine)===code?' is-active':'')+'" onclick="openLine(\''+code+'\')" title="'+esc(st.label||"")+'">'+
+      '<span class="dot" style="background:'+(dot[st.key]||dot.idle)+'"></span>'+
+      '<span class="flex-1 min-w-0"><span class="block text-xs font-extrabold text-slate-800">LINE '+code+'</span>'+
+      '<span class="block text-[10px] text-slate-400 truncate">'+esc(model||st.label||"-")+'</span></span>'+
+      '<span class="text-xs font-extrabold '+(txt[st.key]||txt.idle)+'">'+(st.key==="idle"?'-':st.pct+'%')+'</span>'+
       '</button>';
   }).join("");
+  renderFloorStatus_();
+}
+// หัวผัง: สรุปสถานะทั้งโรง เช่น "4 ตามแผน · 1 เฝ้าระวัง · 1 ต่ำกว่าเป้า"
+function renderFloorStatus_(){
+  var box=el("lvlStatus");
+  if(!box)return;
+  var n={ok:0,warn:0,bad:0,idle:0};
+  LINE_CODES.forEach(function(code){n[lineStatusOf_(lineItemOf_(code)).key]++});
+  var parts=[[n.ok,"ตามแผน"],[n.warn,"เฝ้าระวัง"],[n.bad,"ต่ำกว่าเป้า"],[n.idle,"รอเริ่ม"]]
+    .filter(function(x){return x[0]}).map(function(x){return x[0]+" "+x[1]});
+  box.innerHTML='<span></span>'+esc(parts.join(" · ")||"-");
 }
 
 /* ======================= FLOOR PLAN (แบบโรง 1) ======================= */
-// ตำแหน่งกรอบไลน์บนรูป floor2.jpg (หน่วย % ของรูป 1394×472)
+// ตำแหน่งกรอบไลน์บนรูป floor2_plan.jpg (หน่วย % ของรูป 1394×472 · ตรงกับกรอบขาวในรูป)
 var FLOOR_LINES = [
-  { code:"202", left:46.2, top:16.0, width:10.5, height:12.0 },
-  { code:"204", left:57.4, top:16.0, width:12.1, height:12.0 },
-  { code:"201", left:70.1, top:16.0, width:12.1, height:12.0 },
-  { code:"205", left:46.2, top:29.0, width:10.5, height:12.0 },
-  { code:"203", left:57.4, top:29.0, width:12.1, height:12.0 },
-  { code:"206", left:70.1, top:29.0, width:12.1, height:12.0 }
+  { code:"202", left:46.13, top:16.10, width:10.76, height:11.65 },
+  { code:"204", left:57.32, top:16.10, width:12.27, height:11.65 },
+  { code:"201", left:70.09, top:16.10, width:12.20, height:11.65 },
+  { code:"205", left:46.13, top:29.24, width:10.76, height:11.65 },
+  { code:"203", left:57.32, top:29.24, width:12.27, height:11.65 },
+  { code:"206", left:70.09, top:29.24, width:12.20, height:11.65 }
 ];
-var STATUS_DOT={ok:"#10B981",warn:"#F59E0B",bad:"#F43F5E",idle:"#CBD5E1"};
 
 function lineItemOf_(code){
   return ((dashboardData&&dashboardData.lines)||[]).find(function(x){return String(x.line)===String(code)})||{line:code};
 }
+// สถานะ + % (วันเดียว = เทียบเป้า ณ ตอนนี้ เกณฑ์เดียวกับการ์ด · หลายวัน = เทียบเป้ารวม)
 function lineStatusOf_(item){
   var dateStr=dashboardData.date||currentRange.from;
-  return dashboardData.isRange?{key:num(item.target)?"ok":"idle",label:num(item.target)?"มีข้อมูล":"ยังไม่ตั้งเป้า"}:lineStatus(item,dateStr);
+  var tg=num(item.target), ac=num(item.actual);
+  if(dashboardData.isRange){
+    if(!tg)return {key:"idle",label:"ยังไม่ตั้งเป้า",pct:0};
+    var r=statusVsTarget_(tg,ac); r.pct=Math.round(ac/tg*100); return r;
+  }
+  var st=lineStatus(item,dateStr);
+  var nowT=targetNowFor(item,dateStr);
+  st.pct=nowT>0?Math.round(ac/nowT*100):0;
+  return st;
 }
 
 function renderHotspots(){
@@ -1494,11 +2203,12 @@ function renderHotspots(){
     var item=lineItemOf_(cfg.code);
     var st=lineStatusOf_(item);
     var d=document.createElement("div");
-    d.className="hot"+(String(selectedLine)===cfg.code?" is-active":"");
+    d.className="hot st-"+(st.key==="idle"?"none":st.key)+(String(selectedLine)===cfg.code?" is-active":"");
+    d.style.setProperty("--k",FLOOR_LINES.indexOf(cfg));
     d.style.left=cfg.left+"%"; d.style.top=cfg.top+"%"; d.style.width=cfg.width+"%"; d.style.height=cfg.height+"%";
     d.setAttribute("role","button"); d.setAttribute("tabindex","0");
     d.setAttribute("aria-label","เปิดรายละเอียด LINE "+cfg.code);
-    d.innerHTML='<span class="hotDot" style="background:'+(STATUS_DOT[st.key]||STATUS_DOT.idle)+'"></span><span class="hotLabel">LINE '+cfg.code+'</span>';
+    d.innerHTML='<span class="hotLabel"><i></i>'+cfg.code+'<b>'+(st.key==="idle"?"–":st.pct+"%")+'</b></span>';
     d.addEventListener("mouseenter",function(){showTip(cfg,d)});
     d.addEventListener("mousemove",function(){showTip(cfg,d)});
     d.addEventListener("mouseleave",hideTip);
@@ -1837,21 +2547,403 @@ async function bootDashboard_(){
   await loadDashboard(true);
 }
 
+/* =======================================================
+   เลือกวันที่ (แบบโรง 1): ปฏิทินเลือกช่วง + ทางลัด
+   เขียนค่าลง #datePicker / #datePickerTo เดิม แล้วเรียก onDashDateChange_()
+   ======================================================= */
+const F2DatePick = (function(){
+  const TH_M = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const TH_MF = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const PRESETS = [
+    ['today', 'วันนี้'], ['yesterday', 'เมื่อวาน'], ['last7', '7 วันล่าสุด'],
+    ['week', 'สัปดาห์นี้'], ['month', 'เดือนนี้'], ['lastMonth', 'เดือนก่อน']
+  ];
+  const MAX_DAYS = 31;   // ดึงทีละวัน: ช่วงยาวกว่านี้ไม่ให้เลือก (เหมือน loadDashboard)
+  const st = { a:'', b:'', hover:'', y:0, m:0, open:false };
+  let pop, shade, btn;
+
+  const pad = n => String(n).padStart(2, '0');
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
+  const short = s => { const d = parse(s); return `${d.getDate()} ${TH_M[d.getMonth()]}`; };
+  const isMobile = () => window.matchMedia('(max-width:639px)').matches;
+
+  function presetRange(key){
+    const t = todayLocal(), d = parse(t);
+    if (key === 'today') return [t, t];
+    if (key === 'yesterday'){ const y = addDays(t, -1); return [y, y]; }
+    if (key === 'last7') return [addDays(t, -6), t];
+    if (key === 'week') return [addDays(t, -((d.getDay() + 6) % 7)), t];
+    if (key === 'month') return [iso(new Date(d.getFullYear(), d.getMonth(), 1)), t];
+    return [iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)), iso(new Date(d.getFullYear(), d.getMonth(), 0))];
+  }
+
+  function label(a, b){
+    if (!a) return 'เลือกวันที่';
+    const t = todayLocal();
+    if (!b || b === a){
+      const y = parse(a).getFullYear();
+      return (a === t ? 'วันนี้ · ' : a === addDays(t, -1) ? 'เมื่อวาน · ' : '') + `${short(a)} ${y}`;
+    }
+    const da = parse(a), db = parse(b);
+    if (da.getFullYear() !== db.getFullYear()) return `${short(a)} ${da.getFullYear()} – ${short(b)} ${db.getFullYear()}`;
+    if (da.getMonth() === db.getMonth()) return `${da.getDate()} – ${db.getDate()} ${TH_M[db.getMonth()]} ${db.getFullYear()}`;
+    return `${short(a)} – ${short(b)} ${db.getFullYear()}`;
+  }
+
+  // ปุ่มบนการ์ดให้ตรงกับค่าที่ใช้อยู่จริง
+  function sync(){
+    const t = document.getElementById('dpBtnText'); if (!t) return;
+    const a = el('datePicker').value, b = el('datePickerTo').value;
+    t.textContent = label(a, b || a);
+  }
+
+  function render(){
+    const today = todayLocal();
+    const lo = st.a, hi = st.b || (st.hover && st.hover >= st.a ? st.hover : '');
+    const maxEnd = st.a && !st.b ? addDays(st.a, MAX_DAYS - 1) : '';
+    document.getElementById('dpMonth').textContent = `${TH_MF[st.m]} ${st.y}`;
+    const first = new Date(st.y, st.m, 1);
+    const start = addDays(iso(first), -((first.getDay() + 6) % 7));
+    let html = '';
+    for (let i = 0; i < 42; i++){
+      const s = addDays(start, i), d = parse(s);
+      const cls = ['dp-day'];
+      if (d.getMonth() !== st.m) cls.push('out');
+      if (s === today) cls.push('today');
+      if (lo && s === lo) cls.push('start');
+      if (lo && (s === (hi || lo))) cls.push('end');
+      if (lo && hi && s >= lo && s <= hi) cls.push('in');
+      const off = s > today || (maxEnd && s > maxEnd);
+      html += `<button type="button" class="${cls.join(' ')}" data-d="${s}"${off ? ' disabled' : ''}><i>${d.getDate()}</i></button>`;
+      if (i === 34 && d.getMonth() !== st.m) break;   // เดือนที่ใช้แค่ 5 แถว ไม่ต้องมีแถวว่าง
+    }
+    document.getElementById('dpGrid').innerHTML = html;
+    const t = parse(today);
+    pop.querySelector('.dp-arrow[aria-label="เดือนถัดไป"]').disabled = (st.y > t.getFullYear() || (st.y === t.getFullYear() && st.m >= t.getMonth()));
+    const b = st.b || st.a;
+    pop.querySelectorAll('.dp-preset').forEach(p => {
+      const [pa, pb] = presetRange(p.dataset.k);
+      p.classList.toggle('on', !!st.a && pa === st.a && pb === b);
+    });
+    document.getElementById('dpRange').textContent = st.a ? label(st.a, b) : '-';
+    document.getElementById('dpApply').disabled = !st.a;
+  }
+
+  function place(){
+    if (isMobile()){ pop.style.left = ''; pop.style.top = ''; return; }
+    const r = btn.getBoundingClientRect(), w = pop.offsetWidth || 340, h = pop.offsetHeight || 460;
+    let left = Math.min(r.right - w, window.innerWidth - w - 12);
+    left = Math.max(12, left);
+    let top = r.bottom + 8;
+    if (top + h > window.innerHeight - 12 && r.top - h - 8 > 12) top = r.top - h - 8;   // ล่างไม่พอ เปิดขึ้นบน
+    pop.style.left = left + 'px'; pop.style.top = Math.max(12, top) + 'px';
+  }
+
+  function open(){
+    st.a = el('datePicker').value || todayLocal();
+    st.b = el('datePickerTo').value || '';
+    if (st.b === st.a) st.b = '';
+    st.hover = '';
+    const d = parse(st.b || st.a); st.y = d.getFullYear(); st.m = d.getMonth();
+    render();
+    st.open = true;
+    pop.classList.add('show'); btn.setAttribute('aria-expanded', 'true');
+    if (isMobile()) shade.classList.add('show');
+    place();
+  }
+  function close(){
+    if (!st.open) return;
+    st.open = false;
+    pop.classList.remove('show'); shade.classList.remove('show'); btn.setAttribute('aria-expanded', 'false');
+  }
+  function toggle(){ st.open ? close() : open(); }
+  function move(n){
+    const d = new Date(st.y, st.m + n, 1); st.y = d.getFullYear(); st.m = d.getMonth(); render();
+  }
+
+  function pick(s){
+    if (!st.a || st.b){ st.a = s; st.b = ''; }
+    else if (s < st.a){ st.a = s; }
+    else if (s !== st.a){ st.b = s; }
+    st.hover = ''; render();
+  }
+
+  function apply(){
+    if (!st.a) return;
+    const a = st.a, b = st.b && st.b !== st.a ? st.b : '';
+    const changed = a !== el('datePicker').value || b !== el('datePickerTo').value;
+    close();
+    if (!changed) return;
+    el('datePicker').value = a; el('datePickerTo').value = b;
+    sync();
+    onDashDateChange_();
+  }
+
+  function init(){
+    pop = document.getElementById('dpPop'); btn = document.getElementById('dpBtn');
+    if (!pop || !btn) return;
+    document.body.appendChild(pop);   // ย้ายออกมาไว้ท้ายหน้า ไม่ให้การ์ดอื่นทับ/ตัดขอบ
+    shade = document.createElement('div'); shade.className = 'dp-shade'; shade.onclick = close;
+    document.body.appendChild(shade);
+    document.getElementById('dpPresets').innerHTML = PRESETS.map(([k, t]) => `<button type="button" class="dp-preset" data-k="${k}">${t}</button>`).join('');
+    pop.addEventListener('click', e => {
+      const p = e.target.closest('.dp-preset');
+      if (p){
+        const [a, b] = presetRange(p.dataset.k); st.a = a; st.b = b === a ? '' : b;
+        const d = parse(b); st.y = d.getFullYear(); st.m = d.getMonth(); render(); return;
+      }
+      const day = e.target.closest('.dp-day');
+      if (day && !day.disabled) pick(day.dataset.d);
+    });
+    pop.addEventListener('mouseover', e => {
+      const day = e.target.closest('.dp-day');
+      if (!day || day.disabled || !st.a || st.b || st.hover === day.dataset.d) return;
+      st.hover = day.dataset.d; render();
+    });
+    document.addEventListener('mousedown', e => {
+      if (st.open && !pop.contains(e.target) && !btn.contains(e.target)) close();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+    window.addEventListener('resize', () => { if (st.open) place(); });
+    window.addEventListener('scroll', () => { if (st.open && !isMobile()) place(); }, { passive:true });
+    sync();
+  }
+
+  return { init, toggle, close, move, apply, sync };
+})();
+
+/* =======================================================
+   MOTION (แบบโรง 1) — การ์ดลอยขึ้นไล่กัน · บรรทัดในการ์ดเทลงทีละบรรทัด · หลอด % ไหลไปขวา · ตัวเลข KPI วิ่ง
+   เล่นเฉพาะตอนโหลด Dashboard รอบแรก / หลังสลับธีม (ไม่เล่นตอนรีเฟรชข้อมูลเอง)
+   เครื่องที่ตั้ง "ลดภาพเคลื่อนไหว" = ไม่เล่น
+   ======================================================= */
+const F2Motion = (function(){
+  const SEL = '.card';
+  const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function countEl(node0, delay, dur){
+    const node = Array.prototype.find.call(node0.childNodes, n => n.nodeType === 3 && /\d/.test(n.nodeValue));
+    if (!node) return;
+    const m = node.nodeValue.match(/^([^\d]*)([\d,]+(?:\.\d+)?)([\s\S]*)$/);
+    if (!m) return;
+    const target = parseFloat(m[2].replace(/,/g, ''));
+    if (!isFinite(target) || target === 0) return;
+    const dec = (m[2].split('.')[1] || '').length;
+    const comma = m[2].indexOf(',') >= 0;
+    const show = v => comma ? v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : v.toFixed(dec);
+    const t0 = performance.now() + delay;
+    if (delay) node.nodeValue = m[1] + show(0) + m[3];
+    const step = now => {
+      const p = Math.max(0, Math.min(1, (now - t0) / dur)), e = 1 - Math.pow(1 - p, 3);
+      node.nodeValue = m[1] + show(p < 1 ? target * e : target) + m[3];
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  function countUp(root, d0){
+    root.querySelectorAll('#kpiActual, #kpiTarget').forEach(n => countEl(n, d0 + 200, 900));
+  }
+  // การ์ดที่ต้องรอให้เห็นก่อนค่อยเล่น: อยู่ในจอตอนนี้ = เล่นเลย · อยู่ล่างจอ = เล่นตอนเลื่อนลงมาถึง
+  function playBox(b, cd){
+    b.card.style.setProperty('--cd', cd + 'ms');
+    b.card.classList.remove('f1-wait');
+    b.card.classList.add('f1-go');
+    if (b.fill) growBar(b, cd + b.rows * 110);
+    clearTimeout(b.card._f1t);
+    b.card._f1t = setTimeout(() => {
+      b.card.classList.remove('f1-go');
+      b.card.querySelectorAll('.f1-drop').forEach(e => e.classList.remove('f1-drop'));
+    }, cd + b.rows * 110 + 1900);
+  }
+  // หลอด %: ยาวขึ้นจากซ้ายไปขวา ตัวเลขวิ่งตาม · สีไล่ตาม % ระหว่างทาง แดง → ส้ม → เขียว (เกณฑ์เดียวกับ statusVsTarget_)
+  const BAR_TONES = ['bg-rose-500', 'bg-amber-500', 'bg-emerald-500'];
+  function growBar(b, delay){
+    const dur = 1600, t0 = performance.now() + delay;
+    const tone = p => p >= 100 ? BAR_TONES[2] : p >= 90 ? BAR_TONES[1] : BAR_TONES[0];
+    const paint = (p, w) => {
+      b.fill.style.width = w + '%';
+      if (b.pctEl) b.pctEl.textContent = Math.round(p) + '%';
+      if (b.color){ b.fill.classList.remove(...BAR_TONES); b.fill.classList.add(tone(p)); }
+    };
+    paint(0, 0);
+    const step = now => {
+      if (!b.fill.isConnected) return;
+      const k = Math.max(0, Math.min(1, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3);
+      if (k < 1){ paint(b.pct * e, b.w * e); requestAnimationFrame(step); return; }
+      // จบ: คืนค่าเดิมของการ์ดทุกอย่าง (กว้าง / ตัวเลข / สี)
+      b.fill.style.width = b.w + '%';
+      if (b.pctEl) b.pctEl.textContent = b.pctText;
+      if (b.color){ b.fill.classList.remove(...BAR_TONES); b.fill.classList.add(b.color); }
+    };
+    requestAnimationFrame(step);
+  }
+  function barBox(card, rows, fill, pctEl, colorful){
+    const b = { card, rows };
+    if (!fill) return b;
+    b.fill = fill;
+    b.w = parseFloat(fill.style.width) || 0;
+    b.pctText = pctEl ? pctEl.textContent : '';
+    b.pct = pctEl ? (parseFloat(b.pctText) || 0) : b.w;
+    b.pctEl = pctEl;
+    b.color = colorful ? BAR_TONES.find(c => fill.classList.contains(c)) : '';
+    return b;
+  }
+  // รอบก่อนยังมีการ์ดที่รอเล่นค้างอยู่ → คืนค่าเดิมก่อนเริ่มรอบใหม่
+  function resetBoxes(root){
+    if (root._f1io) root._f1io.disconnect();
+    (root._f1boxes || []).forEach(b => {
+      if (!b.card.classList.contains('f1-wait')) return;
+      b.card.classList.remove('f1-wait');
+      if (b.fill){ b.fill.style.width = b.w + '%'; if (b.pctEl) b.pctEl.textContent = b.pctText; }
+    });
+    root.querySelectorAll('.f1-drop').forEach(e => e.classList.remove('f1-drop'));
+    root._f1boxes = [];
+  }
+  function watchBoxes(root, boxes, d0){
+    root._f1boxes = boxes;
+    boxes.forEach(b => { if (b.fill){ b.fill.style.width = '0%'; if (b.pctEl) b.pctEl.textContent = '0%'; } });
+    if (root._f1io) root._f1io.disconnect();
+    boxes.forEach(b => b.card.classList.add('f1-wait'));
+    const startAt = performance.now() + d0;
+    if (!('IntersectionObserver' in window)){ boxes.forEach((b, k) => playBox(b, d0 + 220 + k * 90)); return; }
+    const byCard = new Map(boxes.map(b => [b.card, b]));
+    const io = new IntersectionObserver(entries => {
+      const base = Math.max(0, startAt - performance.now()) + 220;
+      entries.filter(e => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top || a.boundingClientRect.left - b.boundingClientRect.left)
+        .forEach((e, k) => { io.unobserve(e.target); playBox(byCard.get(e.target), base + k * 90); });
+    }, { threshold: 0.35 });
+    root._f1io = io;
+    boxes.forEach(b => io.observe(b.card));
+  }
+  // การ์ดไลน์ + แถบ KPI ที่จะรอเลื่อนมาเห็นแล้วค่อยเล่น (soft = ไม่เทตัวหนังสือ แค่หลอดวิ่ง)
+  function prepBoxes(root, soft){
+    const boxes = [];
+    root.querySelectorAll('.lineCard').forEach(card => {
+      const rows = soft ? [] : card.querySelectorAll(':scope > div:first-child, :scope > .border-t > .grid, :scope > .border-t > .space-y-2 > div');
+      rows.forEach((r, k) => { r.classList.add('f1-drop'); r.style.setProperty('--r', k); });
+      const bar = card.querySelector(':scope > div:last-child');
+      const fill = bar && bar.querySelector('.rounded-full > div');
+      const pctEl = bar && bar.querySelector(':scope > span');
+      boxes.push(barBox(card, rows.length, fill, pctEl, true));
+    });
+    const kpiBar = root.querySelector('#kpiBar'), kpiCard = kpiBar && kpiBar.closest('.card');
+    if (kpiCard) boxes.push(barBox(kpiCard, 1, kpiBar, null, false));
+    return boxes;
+  }
+  // ข้อมูลอัปเดตเองขณะที่การ์ดยังรอเล่น → การ์ดชุดใหม่ต้องรอเล่นต่อ ไม่ใช่โผล่นิ่งๆ
+  function beforeRender(root){
+    if (!root) return null;
+    const cards = Array.prototype.slice.call(root.querySelectorAll('.lineCard'));
+    const waiting = (root._f1boxes || []).filter(b => b.card.classList.contains('f1-wait'));
+    if (!waiting.length) return null;
+    const info = { idx: waiting.map(b => cards.indexOf(b.card)).filter(i => i >= 0), kpi: waiting.some(b => !b.card.classList.contains('lineCard')) };
+    resetBoxes(root);
+    return info;
+  }
+  function afterRender(root, info){
+    const keep = prepBoxes(root, !!root._f1soft).filter(b => b.card.classList.contains('lineCard') ? info.idx.indexOf(Array.prototype.indexOf.call(root.querySelectorAll('.lineCard'), b.card)) >= 0 : info.kpi);
+    root.querySelectorAll('.lineCard').forEach((c, i) => { if (info.idx.indexOf(i) < 0) c.querySelectorAll('.f1-drop').forEach(e => e.classList.remove('f1-drop')); });
+    watchBoxes(root, keep, 0);
+  }
+  function enter(root, opts){
+    if (!root || reduced()) return;
+    // เปิดหน้าแล้วสลับไปแอปอื่น / จอดับ: รอกลับมาเห็นหน้าก่อนค่อยเล่น
+    if (document.hidden){
+      root._f1defer = opts || {};
+      if (!root._f1vis){
+        root._f1vis = () => {
+          if (document.hidden || !root._f1defer) return;
+          const o = root._f1defer; root._f1defer = null;
+          enter(root, Object.assign({}, o, { delay: 150 }));
+        };
+        document.addEventListener('visibilitychange', root._f1vis);
+      }
+      return;
+    }
+    root._f1defer = null;
+    const d0 = (opts && opts.delay) || 0;
+    const soft = !!(opts && opts.soft);
+    root.style.setProperty('--f1d0', d0 + 'ms');
+    clearTimeout(root._f1t);
+    root.classList.remove('f1-enter', 'f1-fade');
+    resetBoxes(root);
+    // ไล่เฉพาะกล่องชั้นนอก · ใบที่ 13 ขึ้นไปมาพร้อมกัน
+    const items = soft ? [] : Array.prototype.filter.call(root.querySelectorAll(SEL), n => {
+      const p = n.parentElement && n.parentElement.closest(SEL);
+      return !p || !root.contains(p);
+    });
+    items.forEach((n, i) => { n.classList.add('f1-anim'); n.style.setProperty('--i', Math.min(i, 12)); });
+    root._f1soft = soft;
+    watchBoxes(root, prepBoxes(root, soft), d0);
+    void root.offsetWidth;
+    root.classList.add(soft ? 'f1-fade' : 'f1-enter');
+    // หัวเว็บ: แสงกวาดผ่านหนึ่งครั้ง
+    const hd = root.querySelector(':scope > header');
+    if (hd){ hd.classList.remove('f1-sheen'); void hd.offsetWidth; hd.classList.add('f1-sheen'); setTimeout(() => hd.classList.remove('f1-sheen'), d0 + 1800); hd.style.setProperty('--f1d0', d0 + 'ms'); }
+    if (!soft) countUp(root, d0);
+    root._f1t = setTimeout(() => {
+      root.classList.remove('f1-enter', 'f1-fade');
+      items.forEach(n => n.classList.remove('f1-anim'));
+    }, d0 + 2200);
+  }
+  return { enter, beforeRender, afterRender };
+})();
+
+// เล่น motion ครั้งเดียวตอนโหลดข้อมูลรอบแรกเสร็จ (จอโหลดจาง .22 วิ → รอให้หายสนิทก่อน)
+var f2OrigFinishLoading_=finishLoading;
+finishLoading=function(){
+  f2OrigFinishLoading_.apply(this,arguments);
+  if(window.__f2DashReady)return;
+  window.__f2DashReady=true;
+  F2Motion.enter(document.querySelector(".shell"),{delay:400});
+};
+// ข้อมูลอัปเดตเองระหว่างที่การ์ดยังรอเล่น → การ์ดชุดใหม่รอเล่นต่อ
+var f2OrigRenderAll_=renderAll;
+renderAll=function(){
+  var root=document.querySelector(".shell");
+  var rearm=F2Motion.beforeRender(root);
+  f2OrigRenderAll_.apply(this,arguments);
+  if(rearm)F2Motion.afterRender(root,rearm);
+};
+
+/* =======================================================
+   APP NAV (แบบโรง 1) — เมนูซ้าย: หน้าหลัก · ค้นหา LOT · ไม่แสดงในหน้ารวม (?embed=1)
+   ======================================================= */
+var F2Nav=(function(){
+  var root=document.documentElement;
+  function toggleCollapse(){
+    var c=!root.classList.contains("nav-collapsed");
+    root.classList.toggle("nav-collapsed",c);
+    try{localStorage.setItem("f2NavCollapsed",c?"1":"0")}catch(e){}
+    setTimeout(function(){window.dispatchEvent(new Event("resize"))},220);
+  }
+  function open(){root.classList.add("nav-open")}
+  function close(){root.classList.remove("nav-open")}
+  function home(e){if(e)e.preventDefault();close();window.scrollTo({top:0,behavior:"smooth"})}
+  function search(e){if(e)e.preventDefault();close();openLotSearch()}
+  function init(){
+    if(window.__DASH_EMBED__)return;
+    root.classList.add("has-nav");
+    try{if(localStorage.getItem("f2NavCollapsed")==="1")root.classList.add("nav-collapsed")}catch(e){}
+    document.addEventListener("keydown",function(e){if(e.key==="Escape")close()});
+  }
+  return {init:init,toggleCollapse:toggleCollapse,open:open,close:close,home:home,search:search};
+})();
+F2Nav.init();
+
 updateHeaderClock();
 setInterval(updateHeaderClock,1000);
 
 el("datePicker").value=todayLocal();
 el("datePickerTo").value="";
-el("datePicker").addEventListener("change",function(){
+// เลือกวันที่จากปฏิทิน (F2DatePick) แล้วโหลดใหม่ เหมือนตอนเปลี่ยนช่อง From / To เดิม
+function onDashDateChange_(){
   selectedLine="";
   el("lineDetail").classList.add("hide");
-  loadDashboard(true);
-});
-el("datePickerTo").addEventListener("change",function(){
-  selectedLine="";
-  el("lineDetail").classList.add("hide");
-  loadDashboard(true);
-});
+  loadDashboard(true).then(function(){F2DatePick.sync()});
+}
 el("closeDetailBtn").addEventListener("click",function(){
   selectedLine="";
   el("lineDetail").classList.add("hide");
@@ -1862,6 +2954,7 @@ el("lotSearchForm").addEventListener("submit",function(e){
   e.preventDefault();
   runLotSearch(el("lotSearchInput").value);
 });
+F2DatePick.init();
 bootDashboard_();
 
 // ================= V13: Refresh แบบเบา =================
