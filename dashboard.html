@@ -202,52 +202,8 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
 #themeBtn .ico-sun{display:none} html.dark #themeBtn .ico-sun{display:inline} html.dark #themeBtn .ico-moon{display:none}
 </style>
 <style>
-/* ================= ลุคเดียวกับ Dashboard โรง 1 (เมนูซ้าย · กระจก · ผังเส้น · เลือกวันที่ · motion) — ยกมาเป็นของโรง 2 เอง ไม่ได้โหลดไฟล์ของโรง 1 ================= */
-  /* ================= APP NAV (เมนูซ้าย) — ไม่แสดงในโหมด ?embed=1 ================= */
-  :root{ --nav-w:252px; --nav-rail:72px; }
-  #appNav, #appTopbar, #appNavBackdrop{ display:none; }
-  html.has-nav #appNav{
-    display:flex; flex-direction:column; position:fixed; z-index:90; top:0; bottom:0; left:0;
-    width:var(--nav-w); color:#E6EDF6; overflow:hidden;
-    background:linear-gradient(180deg,#0F172A 0%,#16233F 100%);
-    border-right:1px solid rgba(255,255,255,.06); transition:width .2s ease, transform .2s ease;
-  }
-  html.has-nav body{ padding-left:var(--nav-w); transition:padding-left .2s ease; }
-  html.has-nav.nav-collapsed #appNav{ width:var(--nav-rail); }
-  html.has-nav.nav-collapsed body{ padding-left:var(--nav-rail); }
-  html.nav-collapsed .nav-text, html.nav-collapsed .nav-tag, html.nav-collapsed .nav-group{ display:none; }
-  html.nav-collapsed .nav-item, html.nav-collapsed .nav-brand{ justify-content:center; padding-left:0; padding-right:0; }
-  .nav-brand{ display:flex; align-items:center; gap:10px; padding:16px 16px 12px; min-height:64px; box-sizing:border-box; }
-  .nav-logo{ width:40px; height:40px; flex:0 0 40px; border-radius:12px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; }
-  .nav-toggle{ margin-left:auto; width:40px; height:40px; flex:0 0 40px; border-radius:10px; border:0; background:transparent; color:#B7C2D3; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-  .nav-toggle:hover{ background:rgba(255,255,255,.08); color:#fff; }
-  html.nav-collapsed .nav-toggle{ margin-left:0; }
-  html.nav-collapsed .nav-brand{ flex-direction:column; gap:6px; }
-  .nav-list{ display:flex; flex-direction:column; gap:2px; padding:4px 10px; overflow-y:auto; }
-  .nav-group{ font-size:11px; letter-spacing:.06em; color:#7F8CA3; padding:14px 12px 6px; }
-  .nav-item{ display:flex; align-items:center; gap:12px; min-height:44px; padding:0 12px; border-radius:12px; color:#C7D0DD; text-decoration:none; font-size:14px; }
-  .nav-item:hover{ background:rgba(255,255,255,.07); color:#fff; }
-  .nav-item.is-active{ background:rgba(214,185,123,.16); color:#F1DFB5; }
-  .nav-item svg{ flex:0 0 20px; }
-  .nav-tag{ margin-left:auto; font-size:10px; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,.08); color:#93A0B4; white-space:nowrap; }
-  .nav-foot{ margin-top:auto; padding:12px 16px 16px; font-size:11px; color:#6F7C91; }
-  html.nav-collapsed .nav-foot{ display:none; }
+/* ================= ลุคเดียวกับ Dashboard โรง 1 (กระจก · ผังเส้น · เลือกวันที่ · motion) — ยกมาเป็นของโรง 2 เอง ไม่ได้โหลดไฟล์ของโรง 1 ================= */
 
-  /* มือถือ / แท็บเล็ต: เมนูเป็นลิ้นชัก + แถบบน */
-  @media (max-width:1023px){
-    html.has-nav body, html.has-nav.nav-collapsed body{ padding-left:0; padding-top:56px; }
-    html.has-nav #appNav, html.has-nav.nav-collapsed #appNav{ width:var(--nav-w); transform:translateX(-100%); box-shadow:none; }
-    html.nav-open #appNav{ transform:translateX(0) !important; box-shadow:0 20px 60px rgba(0,0,0,.45); }
-    html.nav-collapsed .nav-text, html.nav-collapsed .nav-tag, html.nav-collapsed .nav-group, html.nav-collapsed .nav-foot{ display:revert; }
-    html.nav-collapsed .nav-item{ justify-content:flex-start; padding:0 12px; }
-    html.nav-collapsed .nav-brand{ flex-direction:row; justify-content:flex-start; padding:16px 16px 12px; }
-    html.has-nav #appTopbar{ display:flex; position:fixed; z-index:85; top:0; left:0; right:0; height:56px; align-items:center; gap:10px; padding:0 8px; background:#0F172A; color:#fff; }
-    html.nav-open #appNavBackdrop{ display:block; position:fixed; inset:0; z-index:88; background:rgba(15,23,42,.55); }
-    .nav-toggle.desk{ display:none; }
-  }
-  @media (min-width:1024px){ .nav-close.mob{ display:none; } }
-
-  /* หน้าอื่นที่ไม่ใช่ Sewing: ซ่อน Loading ของ Dashboard (Dashboard ยังโหลดอยู่เบื้องหลัง) */
   /* ================= MOTION — เล่นตอนเข้าหน้า / Dashboard โหลดเสร็จครั้งแรก (ไม่เล่นตอนรีเฟรชข้อมูล) ================= */
   @keyframes f1Up{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:none; } }
   @keyframes f1Fade{ from{ opacity:0; } to{ opacity:1; } }
@@ -267,7 +223,6 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
     /* เอาเมาส์ชี้การ์ดเล็ก: ยกขึ้นนิดนึง */
     .lineCard{ transition:transform .22s cubic-bezier(.2,.75,.25,1), box-shadow .22s ease; }
     .lineCard:hover{ transform:translateY(-3px); box-shadow:0 16px 32px -22px rgba(15,23,42,.55); }
-    .nav-item{ transition:background-color .2s ease, color .2s ease; }
   }
   /* ================= GLASS THEME — สว่าง: กระจกขาวบนฟ้าม่วงอ่อน · มืด: กระจกดำตัดทองแชมเปญ =================
      ไม่ใช้ backdrop-filter กับการ์ด (พื้นหลังฟุ้งอยู่แล้ว ดูเหมือนกัน แต่เครื่องโรงงาน/ทีวีไม่หน่วง) */
@@ -326,62 +281,6 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
   html.dark .shell > header .hd-ico, html.dark #themeBtn{ color:#D6B97B; }
   .hd-ico{ display:inline-flex; }
   .live-dot{ width:8px; height:8px; border-radius:50%; background:#10B981; box-shadow:0 0 0 0 rgba(16,185,129,.55); flex:0 0 8px; }
-
-  /* ---------- เมนูซ้าย ---------- */
-  html:not(.dark) #appNav{
-    background:rgba(255,255,255,.55); color:#1E293B;
-    border-right:1px solid rgba(255,255,255,.85);
-    box-shadow:inset -1px 0 0 rgba(255,255,255,.6), 12px 0 40px -30px rgba(49,46,129,.35);
-  }
-  html:not(.dark) .nav-logo{ background:linear-gradient(140deg,#6366F1,#22D3EE); border-color:transparent; box-shadow:0 10px 20px -10px #6366F1; }
-  html:not(.dark) .nav-logo svg{ stroke:#fff; }
-  html:not(.dark) .nav-brand .nav-text div:last-child{ color:#475569 !important; }
-  html:not(.dark) .nav-toggle{ color:#475569; }
-  html:not(.dark) .nav-toggle:hover{ background:rgba(255,255,255,.7); color:#0F172A; }
-  html:not(.dark) .nav-group{ color:#64748B; }
-  html:not(.dark) .nav-item{ color:#334155; }
-  html:not(.dark) .nav-item:hover{ background:rgba(255,255,255,.65); color:#0F172A; }
-  html:not(.dark) .nav-item.is-active{ background:rgba(255,255,255,.92); color:#1E1B4B; font-weight:600; box-shadow:0 10px 22px -16px rgba(49,46,129,.7), inset 0 1px 0 #fff; }
-  html:not(.dark) .nav-item.is-active svg{ color:#6366F1; }
-  html:not(.dark) .nav-tag{ background:rgba(99,102,241,.10); color:#4F46E5; }
-  html:not(.dark) .nav-foot{ color:#64748B; }
-  /* การ์ดผู้ใช้ท้ายเมนู (ชื่อ LINE + รูป) */
-  .nav-foot{ padding:12px 12px 14px; }
-  html.nav-collapsed .nav-foot{ display:block; padding:12px 8px 14px; }
-  .nav-user{ display:flex; align-items:center; gap:10px; padding:10px; border-radius:18px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); }
-  html.nav-collapsed .nav-user{ justify-content:center; padding:8px 0; background:transparent; border-color:transparent; }
-  .nav-avatar{ position:relative; width:38px; height:38px; flex:0 0 38px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; background:rgba(214,185,123,.12); border:1px solid rgba(214,185,123,.30); color:#D6B97B; }
-  .nav-avatar img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-  .nav-user-text{ display:flex; flex-direction:column; min-width:0; line-height:1.25; }
-  .nav-user-name{ font-size:14px; font-weight:600; color:#E6EDF6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .nav-user-sub{ font-size:12px; color:#A3B1C6; }
-  html:not(.dark) .nav-user{ background:rgba(255,255,255,.72); border-color:rgba(255,255,255,.95); box-shadow:0 10px 22px -16px rgba(49,46,129,.55), inset 0 1px 0 #fff; }
-  html:not(.dark) .nav-avatar{ background:#E0E7FF; border-color:transparent; color:#4338CA; }
-  html:not(.dark) .nav-user-name{ color:#0F172A; }
-  html:not(.dark) .nav-user-sub{ color:#475569; }
-  html.dark #appNav{
-    background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0) 40%), rgba(10,14,23,.78);
-    border-right:1px solid rgba(255,255,255,.06);
-  }
-  html.dark .nav-brand{ box-shadow:inset 0 -1px 0 rgba(214,185,123,.18); }
-  html.dark .nav-logo{ background:rgba(214,185,123,.10); border-color:rgba(214,185,123,.35); }
-  html.dark .nav-item.is-active{ background:linear-gradient(180deg,#D6B97B,#B8975A); color:#14110A; font-weight:600; box-shadow:0 8px 20px -12px rgba(214,185,123,.8); }
-  @media (min-width:1024px){
-    /* เมนูลอยเป็นแผ่นกระจก มีขอบโค้ง */
-    html.has-nav #appNav{ top:14px; bottom:14px; left:14px; width:calc(var(--nav-w) - 18px); border-radius:26px; border:1px solid rgba(255,255,255,.85); }
-    html.has-nav.nav-collapsed #appNav{ width:calc(var(--nav-rail) - 8px); }
-    html.dark.has-nav #appNav{ border-color:rgba(255,255,255,.07); }
-  }
-  html:not(.dark) #appTopbar{ background:rgba(255,255,255,.80) !important; color:#0F172A !important; box-shadow:0 10px 30px -20px rgba(49,46,129,.45); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
-  html:not(.dark) #appTopbar .nav-toggle{ color:#0F172A !important; }
-  html.dark #appTopbar{ background:rgba(10,14,23,.86); box-shadow:inset 0 -1px 0 rgba(214,185,123,.30); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
-  /* มือถือ / แท็บเล็ต: เมนูลิ้นชักเป็นแผ่นทึบ (กระจกใสซ้อนกับเนื้อหาข้างหลังจนอ่านไม่ออก) */
-  @media (max-width:1023px){
-    html:not(.dark) #appNav{ background:linear-gradient(180deg,#F7F8FF 0%,#EEF1FF 100%); border-right:1px solid #E0E7FF; }
-    html.dark #appNav{ background:linear-gradient(180deg,#0D121D 0%,#080B13 100%); border-right:1px solid rgba(214,185,123,.18); }
-    html:not(.dark) .nav-user{ background:#fff; }
-    html.dark .nav-user{ background:#121a2a; }
-  }
 
   /* ---------- สลับธีม: สีค่อยๆ เปลี่ยน (สำรอง) / วงกลมขยาย (View Transition) ---------- */
   html.theme-fade, html.theme-fade *{ transition:background-color .6s ease, border-color .6s ease, color .6s ease, box-shadow .6s ease !important; }
@@ -633,10 +532,6 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
     html.dark .lineCard:hover, html.dark .kpi:hover{ transform:translateY(-4px); border-color:rgba(214,185,123,.38); box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(214,185,123,.10), 0 26px 50px -30px rgba(214,185,123,.35); }
     .kpi{ transition:transform .22s cubic-bezier(.2,.75,.25,1), box-shadow .22s ease, border-color .22s ease; }
     .lineCard{ transition:transform .22s cubic-bezier(.2,.75,.25,1), box-shadow .22s ease, border-color .22s ease; }
-    /* เมนู: ไอคอนขยับนิดตอนชี้ */
-    .nav-item{ transition:background-color .2s ease, color .2s ease, box-shadow .25s ease; }
-    .nav-item svg{ transition:transform .2s cubic-bezier(.2,.75,.25,1); }
-    .nav-item:hover svg{ transform:translateX(2px) scale(1.06); }
   }
 
   /* ===== เลือกวันที่: ปุ่ม + ปฏิทินเลือกช่วง ===== */
@@ -749,45 +644,6 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
 </div>
 
 <div id="f1Aurora" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
-
-<!-- ======================= APP NAV (เมนูซ้าย แบบโรง 1) ======================= -->
-<div id="appTopbar">
-  <button type="button" class="nav-toggle" onclick="F2Nav.open()" aria-label="เปิดเมนู" style="color:#fff;margin-left:0">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-  </button>
-  <span style="font-weight:600;font-size:16px">Production Dashboard</span>
-</div>
-<div id="appNavBackdrop" onclick="F2Nav.close()"></div>
-<aside id="appNav" aria-label="เมนูหลัก">
-  <div class="nav-brand">
-    <div class="nav-logo" aria-hidden="true">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D6B97B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l5 3V10l5 3V6l8 4v11z"/><path d="M3 21h18"/></svg>
-    </div>
-    <div class="nav-text" style="line-height:1.2"><div style="font-weight:600;font-size:15px">Factory 2</div><div style="font-size:11px;color:#93A0B4">Production System</div></div>
-    <button type="button" class="nav-toggle desk" onclick="F2Nav.toggleCollapse()" aria-label="ย่อ / ขยายเมนู" title="ย่อ / ขยายเมนู">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>
-    </button>
-    <button type="button" class="nav-toggle nav-close mob" onclick="F2Nav.close()" aria-label="ปิดเมนู">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-    </button>
-  </div>
-  <nav class="nav-list">
-    <a class="nav-item is-active" href="#" onclick="F2Nav.home(event)" aria-current="page" title="หน้าหลัก">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>
-      <span class="nav-text">หน้าหลัก</span>
-    </a>
-    <a class="nav-item" href="#" onclick="F2Nav.search(event)" title="ค้นหา LOT">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <span class="nav-text">ค้นหา LOT</span>
-    </a>
-  </nav>
-  <div class="nav-foot">
-    <div class="nav-user" title="ผู้ใช้">
-      <span class="nav-avatar" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
-      <span class="nav-text nav-user-text"><span id="displayName" class="nav-user-name">Guest User</span><span class="nav-user-sub">โรง 2</span></span>
-    </div>
-  </div>
-</aside>
 
 <div class="shell px-3 md:px-6 pt-4 md:pt-6">
 
@@ -2908,30 +2764,6 @@ renderAll=function(){
   if(rearm)F2Motion.afterRender(root,rearm);
 };
 
-/* =======================================================
-   APP NAV (แบบโรง 1) — เมนูซ้าย: หน้าหลัก · ค้นหา LOT · ไม่แสดงในหน้ารวม (?embed=1)
-   ======================================================= */
-var F2Nav=(function(){
-  var root=document.documentElement;
-  function toggleCollapse(){
-    var c=!root.classList.contains("nav-collapsed");
-    root.classList.toggle("nav-collapsed",c);
-    try{localStorage.setItem("f2NavCollapsed",c?"1":"0")}catch(e){}
-    setTimeout(function(){window.dispatchEvent(new Event("resize"))},220);
-  }
-  function open(){root.classList.add("nav-open")}
-  function close(){root.classList.remove("nav-open")}
-  function home(e){if(e)e.preventDefault();close();window.scrollTo({top:0,behavior:"smooth"})}
-  function search(e){if(e)e.preventDefault();close();openLotSearch()}
-  function init(){
-    if(window.__DASH_EMBED__)return;
-    root.classList.add("has-nav");
-    try{if(localStorage.getItem("f2NavCollapsed")==="1")root.classList.add("nav-collapsed")}catch(e){}
-    document.addEventListener("keydown",function(e){if(e.key==="Escape")close()});
-  }
-  return {init:init,toggleCollapse:toggleCollapse,open:open,close:close,home:home,search:search};
-})();
-F2Nav.init();
 
 updateHeaderClock();
 setInterval(updateHeaderClock,1000);
