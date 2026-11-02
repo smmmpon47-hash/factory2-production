@@ -250,6 +250,7 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
   html:not(.dark) .floorSwitch{ background:rgba(255,255,255,.55); }
   /* หน้าต่างลอย (ค้นหา LOT / รายละเอียดไลน์) ทึบกว่า อ่านง่าย */
   html:not(.dark) .fixed .card{ background:rgba(255,255,255,.97); }
+  html:not(.dark) .lotModalBack .card{ background:#fff; }
 
   /* ---------- การ์ด: มืด ดำตัดทอง ---------- */
   html.dark .card, html.dark .floorMain, html.dark .guideColumn, html.dark .guideTitle, html.dark .lineShortcutBody, html.dark .guideBody{
@@ -257,7 +258,7 @@ html.dark ::selection{background:rgba(214,185,123,.35)}
     border:1px solid rgba(255,255,255,.07);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 28px 56px -34px rgba(0,0,0,.95);
   }
-  html.dark .fixed .card{ background:#0D121D; }
+  html.dark .fixed .card, html.dark .lotModalBack .card{ background:#0D121D; }
 
   /* ---------- หัว Dashboard ---------- */
   .shell > header{ position:relative; overflow:hidden; }
