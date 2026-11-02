@@ -1200,7 +1200,7 @@ function currentRateOf(item){
   var v=Number(item&&item.rate_per_hour);
   return Number.isFinite(v)&&v>0?v:RATE;
 }
-// สรุป Rate ของวัน เช่น "สเวตเตอร์ 60 → เสื้อปกติ 80"
+// สรุป Rate ของวัน เช่น "สเวตเตอร์ 60 → เสื้อยืด 80"
 function rateSummaryOf(item){
   var plan=Array.isArray(item&&item.slot_plan)?item.slot_plan:[];
   var parts=[];
@@ -1431,7 +1431,7 @@ function reportedActual(item){
 function targetNowFor(item,dateStr){
   if(!num(item.target))return 0;
   // ตาม logic โรง 1: เป้าตอนนี้ขยับตาม "รอบที่บันทึกจริง" ไม่ใช่นาฬิกา
-  // V9: แต่ละรอบใช้ Rate ตามประเภทงานของ LOT ในรอบนั้น (สเวตเตอร์ 60 / เสื้อปกติ 80)
+  // V9: แต่ละรอบใช้ Rate ตามประเภทงานของ LOT ในรอบนั้น (สเวตเตอร์ 60 / เสื้อยืด 80)
   var sum=reportedWorkingSlots(item).reduce(function(acc,slot){return acc+slotRate(item,slot)},0);
   return Math.min(num(item.target),sum);
 }
